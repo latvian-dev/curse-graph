@@ -13,7 +13,7 @@ import com.google.gson.annotations.Expose;
 
 public class Main
 {
-	public static final int version = 1;
+	public static final int version = 2;
 	public static boolean updateAvailable = false;
 	
 	public static TrayIcon trayIcon = null;
@@ -83,6 +83,8 @@ public class Main
 		refresh();
 		Projects.save();
 		Graph.init();
+		
+		if(updateAvailable) showInfo("Update available!");
 	}
 	
 	private static File getFolder()

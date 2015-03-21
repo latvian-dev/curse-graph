@@ -44,6 +44,8 @@ public class Graph
 	
 	public static void logData() throws Exception
 	{
+		Main.refresh();
+		
 		if(graphData == null) graphData = new GraphData();
 		
 		long ms = System.currentTimeMillis();
@@ -64,14 +66,14 @@ public class Graph
 			
 			int d = p.getTotalDownloads();
 			
-			if(graphData.lastCheck == -1L)
+			//FIXME if(graphData.lastCheck == -1L)
 				map.put(ms, d);
-			else
+			/*else
 			{
 				Integer i = map.get(graphData.lastCheck);
-				if(i != null && i.longValue() != d)
+				if(i == null || i.longValue() != d)
 					map.put(ms, d);
-			}
+			}*/
 		}
 		
 		checkNull();
@@ -120,7 +122,6 @@ public class Graph
 			{
 				while(true)
 				{
-					Main.refresh();
 					logData();
 					
 					if(Main.config.refreshMinutes <= 0)
@@ -144,6 +145,11 @@ public class Graph
 			{
 				super.paint(g);
 				
+				/*try { logData(); }
+				catch(Exception e)
+				{ e.printStackTrace(); }
+				*/
+				
 				Graphics2D g2d = (Graphics2D) g;
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -153,7 +159,9 @@ public class Graph
 				
 				Map<Long, Integer> map = graphData.projects.get(mod.modID);
 				
-				TimedValue values[] = new TimedValue[map.size()];
+				if(map == null || map.isEmpty()) return;
+				
+				TimedValue values[] = new TimedValue[map.size() + 1];
 				
 				long minTime = -1;
 				long maxTime = -1;
@@ -163,6 +171,7 @@ public class Graph
 				int index = -1;
 				for(Long l : map.keySet())
 					values[++index] = new TimedValue(l, map.get(l));
+				values[++index] = new TimedValue(System.currentTimeMillis(), mod.getTotalDownloads());
 				
 				//values[values.length - 1] = new TimedValue(System.currentTimeMillis(), mod.getTotalDownloads());
 				
@@ -175,6 +184,8 @@ public class Graph
 					if(minDown == -1 || values[i].down < minDown) minDown = values[i].down;
 					if(maxDown == -1 || values[i].down > maxDown) maxDown = values[i].down;
 				}
+				
+				//if(minTime == -1 || maxTime == -1 || minDown == -1 || maxDown == -1) return;
 				
 				g.drawString("" + maxDown, 4, 16);
 				g.drawString("" + ((maxDown + minDown) / 2), 4, h / 2 + 4);

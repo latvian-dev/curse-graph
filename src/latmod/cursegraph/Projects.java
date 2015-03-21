@@ -33,13 +33,7 @@ public class Projects
 		
 		List<String> l = Utils.fromJsonFile(Main.projectsFile, Utils.getListType(String.class));
 		
-		if(l == null)
-		{
-			l = new ArrayList<String>();
-			l.add(Curse.Type.MOD + "@224778-latcoremc");
-			l.add(Curse.Type.MOD + "@tinkers-construct");
-			l.add(Curse.Type.MOD + "@mb-battlegear-2");
-		}
+		if(l == null) l = new ArrayList<String>();
 		
 		boolean addedAll = true;
 		
@@ -103,7 +97,7 @@ public class Projects
 			{
 				save();
 				Main.showInfo("Added '" + m.title + "'!");
-				Main.refresh();
+				Graph.logData();
 			}
 			return true;
 		}
