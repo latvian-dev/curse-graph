@@ -155,7 +155,7 @@ public class Graph
 					double y = h - 1 - Utils.map(values[i].down, minDown, maxDown, 0D, h);
 					points.add(new Point((int)x, (int)y));
 					
-					System.out.println(x + ", " + y + "; " + values[i].time + ", " + values[i].down);
+					//System.out.println(x + ", " + y + "; " + values[i].time + ", " + values[i].down);
 				}
 				
 				for(int i = 0; i < points.size(); i++)
