@@ -8,66 +8,74 @@ import java.util.*;
 
 import javax.swing.*;
 
-import latmod.cursegraph.Main.Mod;
-
 import com.google.gson.annotations.Expose;
 
 public class Graph
 {
-	public static long checkMillis = 900000L;
-	
 	public static File dataFile;
 	public static GraphData graphData;
 	public static BufferedImage image_graph;
+	public static Checker checker;
 	
 	public static void init() throws Exception
 	{
 		dataFile = new File(Main.folder, "data.json");
+		graphData = Utils.fromJsonFile(dataFile, GraphData.class);
 		
-		graphData = null;
+		if(!dataFile.exists()) dataFile.createNewFile();
 		
-		if(dataFile.exists())
+		if(graphData == null)
 		{
-			try
-			{
-				FileInputStream fis = new FileInputStream(dataFile);
-				String graphDataS = Utils.toString(fis);
-				fis.close();
-				
-				if(graphDataS != null && !graphDataS.isEmpty())
-					graphData = Utils.fromJson(graphDataS, GraphData.class);
-			}
-			catch(Exception e) { e.printStackTrace(); }
+			graphData = new GraphData();
+			checkNull();
 		}
 		
 		image_graph = Main.loadImage("graph_background.png");
 		
-		new Checker().start();
+		checker = new Checker();
+		checker.start();
+	}
+	
+	public static void checkNull()
+	{
+		if(graphData.projects == null) graphData.projects = new HashMap<String, Map<Long, Integer>>();
+		if(graphData.lastCheck == null) graphData.lastCheck = -1L;
 	}
 	
 	public static void logData() throws Exception
 	{
-		if(graphData == null)
-		{
-			graphData = new GraphData();
-			graphData.graph = new HashMap<String, Map<Long, Integer>>();
-		}
+		if(graphData == null) graphData = new GraphData();
 		
 		long ms = System.currentTimeMillis();
 		
-		for(int i = 0; i < Main.loadedMods.size(); i++)
+		//System.out.println("Data logged with ID " + ms + "!");
+		
+		checkNull();
+		
+		if(Projects.hasProjects()) for(Curse.Project p : Projects.list)
 		{
-			Mod m = Main.loadedMods.get(i);
+			Map<Long, Integer> map = graphData.projects.get(p.modID);
 			
-			Map<Long, Integer> map = graphData.graph.get(m.modID);
 			if(map == null)
 			{
 				map = new HashMap<Long, Integer>();
-				graphData.graph.put(m.modID, map);
+				graphData.projects.put(p.modID, map);
 			}
 			
-			map.put(ms, m.getTotalDownloads());
+			int d = p.getTotalDownloads();
+			
+			if(graphData.lastCheck == -1L)
+				map.put(ms, d);
+			else
+			{
+				Integer i = map.get(graphData.lastCheck);
+				if(i != null && i.longValue() != d)
+					map.put(ms, d);
+			}
 		}
+		
+		checkNull();
+		graphData.lastCheck = ms;
 		
 		String s = Utils.toJson(graphData, true);
 		FileOutputStream fos = new FileOutputStream(dataFile);
@@ -76,7 +84,8 @@ public class Graph
 	
 	public static class GraphData
 	{
-		@Expose public Map<String, Map<Long, Integer>> graph;
+		@Expose public Map<String, Map<Long, Integer>> projects;
+		@Expose public Long lastCheck;
 	}
 	
 	public static class Checker implements Runnable
@@ -85,9 +94,24 @@ public class Graph
 		
 		public void start()
 		{
-			thread = new Thread(this);
-			thread.setDaemon(true);
-			thread.start();
+			if(thread != null) stop();
+			
+			if(thread == null)
+			{
+				thread = new Thread(this);
+				thread.setDaemon(true);
+				thread.start();
+			}
+		}
+		
+		@SuppressWarnings("deprecation")
+		public void stop()
+		{
+			if(thread != null)
+			{
+				thread.stop();
+				thread = null;
+			}
 		}
 		
 		public void run()
@@ -97,7 +121,11 @@ public class Graph
 				while(true)
 				{
 					logData();
-					Thread.sleep(checkMillis);
+					
+					if(Main.config.refreshMinutes <= 0)
+					{ Main.config.refreshMinutes = 15; Main.config.save(); }
+					
+					Thread.sleep(Main.config.refreshMinutes * 60L * 1000L);
 				}
 			}
 			catch(Exception e)
@@ -105,7 +133,7 @@ public class Graph
 		}
 	}
 	
-	public static void displayGraph(final Mod mod)
+	public static void displayGraph(final Curse.Project mod)
 	{
 		final JLabel picLabel = new JLabel(new ImageIcon(image_graph))
 		{
@@ -115,10 +143,14 @@ public class Graph
 			{
 				super.paint(g);
 				
+				Graphics2D g2d = (Graphics2D) g;
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				
 				int w = getWidth();
 				int h = getHeight();
 				
-				Map<Long, Integer> map = graphData.graph.get(mod.modID);
+				Map<Long, Integer> map = graphData.projects.get(mod.modID);
 				
 				TimedValue values[] = new TimedValue[map.size()];
 				

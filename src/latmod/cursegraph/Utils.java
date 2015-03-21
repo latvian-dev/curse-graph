@@ -10,7 +10,7 @@ import com.google.gson.reflect.TypeToken;
 public class Utils
 {
 	public static String toString(InputStream is) throws Exception
-	{ byte b[] = new byte[is.available()]; is.read(b); return new String(b); }
+	{ byte b[] = new byte[is.available()]; is.read(b); is.close(); return new String(b); }
 	
 	public static File newFile(File f)
 	{
@@ -30,19 +30,20 @@ public class Utils
 	
 	public static <T> T fromJson(String s, Type t)
 	{
-		if(s == null || s.length() < 2) s = "{}";
+		if(s == null || s.length() < 2) return null;
 		Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
 		return gson.fromJson(s, t);
 	}
 	
-	public static <T> T fromJsonFromFile(File f, Type t)
+	public static <T> T fromJsonFile(File f, Type t)
 	{
+		if(f == null || !f.exists()) return null;
+		
 		try
 		{
 			FileInputStream fis = new FileInputStream(f);
-			byte[] b = new byte[fis.available()];
-			fis.read(b); fis.close();
-			return fromJson(new String(b), t);
+			String s = toString(fis);
+			return fromJson(s, t);
 		}
 		catch(Exception e)
 		{ e.printStackTrace(); return null; }
