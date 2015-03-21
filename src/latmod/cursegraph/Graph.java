@@ -120,6 +120,7 @@ public class Graph
 			{
 				while(true)
 				{
+					Main.refresh();
 					logData();
 					
 					if(Main.config.refreshMinutes <= 0)
