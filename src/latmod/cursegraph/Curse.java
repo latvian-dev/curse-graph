@@ -10,9 +10,10 @@ public class Curse
 	{
 		MOD("mc-mods", "Mod"),
 		TEX_PACK("texture-packs", "Texture Pack"),
-		WORLD("worlds", "World");
+		WORLD("worlds", "World"),
+		MODPACK("modpacks", "[WIP] Modpack"),
 		
-		public static final Type[] VALUES = values();
+		; public static final Type[] VALUES = values();
 		public final String ID;
 		public final String name;
 		
@@ -52,6 +53,8 @@ public class Curse
 		@Expose public Version download;
 		@Expose public Map<String, Version[]> versions;
 		
+		private int totalDownloads = -1;
+		
 		public String toString()
 		{ return modID; }
 		
@@ -63,22 +66,21 @@ public class Curse
 		
 		public int getTotalDownloads()
 		{
-			int i = downloads.get("total") + 0;
-			
-			if(i == -1) return 0;
-			
-			if(i == 0)
+			if(totalDownloads == -1)
 			{
+				int i1 = downloads.get("total");
+				int i2 = 0;
+				
 				for(String s : versions.keySet())
 				{
 					for(Version v : versions.get(s))
-						i += v.downloads.intValue();
+						i2 += v.downloads.intValue();
 				}
 				
-				if(i == 0) { i = -1; return 0; }
+				totalDownloads = Math.max(i1, i2);
 			}
 			
-			return i;
+			return totalDownloads;
 		}
 		
 		public Type getType()

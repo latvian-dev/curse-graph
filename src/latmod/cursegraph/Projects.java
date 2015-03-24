@@ -8,6 +8,14 @@ public class Projects
 {
 	public static final ArrayList<Curse.Project> list = new ArrayList<Curse.Project>();
 	
+	public static ArrayList<Curse.Project> getByType(Curse.Type t)
+	{
+		ArrayList<Curse.Project> l = new ArrayList<Curse.Project>();
+		for(Curse.Project p : list)
+		{ if(p.typeID.intValue() == t.ordinal()) l.add(p); }
+		return l;
+	}
+	
 	public static boolean hasProjects()
 	{ return !list.isEmpty(); }
 	
@@ -33,7 +41,11 @@ public class Projects
 		
 		List<String> l = Utils.fromJsonFile(Main.projectsFile, Utils.getListType(String.class));
 		
-		if(l == null) l = new ArrayList<String>();
+		if(l == null)
+		{
+			l = new ArrayList<String>();
+			l.add(Curse.Type.MOD + "@224778-latcoremc");
+		}
 		
 		boolean addedAll = true;
 		
@@ -99,6 +111,7 @@ public class Projects
 				Main.showInfo("Added '" + m.title + "'!");
 				Graph.logData();
 			}
+			
 			return true;
 		}
 		catch(Exception ex)

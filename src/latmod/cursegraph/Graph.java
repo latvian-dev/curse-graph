@@ -5,6 +5,7 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
+import java.util.List;
 
 import javax.swing.*;
 
@@ -12,87 +13,16 @@ import com.google.gson.annotations.Expose;
 
 public class Graph
 {
-	public static File dataFile;
-	public static GraphData graphData;
-	public static BufferedImage image_graph;
-	public static Checker checker;
-	
-	public static void init() throws Exception
-	{
-		dataFile = new File(Main.folder, "data.json");
-		graphData = Utils.fromJsonFile(dataFile, GraphData.class);
-		
-		if(!dataFile.exists()) dataFile.createNewFile();
-		
-		if(graphData == null)
-		{
-			graphData = new GraphData();
-			checkNull();
-		}
-		
-		image_graph = Main.loadImage("graph_background.png");
-		
-		checker = new Checker();
-		checker.start();
-	}
-	
-	public static void checkNull()
-	{
-		if(graphData.projects == null) graphData.projects = new HashMap<String, Map<Long, Integer>>();
-		if(graphData.lastCheck == null) graphData.lastCheck = -1L;
-	}
-	
-	public static void logData() throws Exception
-	{
-		Main.refresh();
-		
-		if(graphData == null) graphData = new GraphData();
-		
-		long ms = System.currentTimeMillis();
-		
-		//System.out.println("Data logged with ID " + ms + "!");
-		
-		checkNull();
-		
-		if(Projects.hasProjects()) for(Curse.Project p : Projects.list)
-		{
-			Map<Long, Integer> map = graphData.projects.get(p.modID);
-			
-			if(map == null)
-			{
-				map = new HashMap<Long, Integer>();
-				graphData.projects.put(p.modID, map);
-			}
-			
-			int d = p.getTotalDownloads();
-			
-			//FIXME if(graphData.lastCheck == -1L)
-				map.put(ms, d);
-			/*else
-			{
-				Integer i = map.get(graphData.lastCheck);
-				if(i == null || i.longValue() != d)
-					map.put(ms, d);
-			}*/
-		}
-		
-		checkNull();
-		graphData.lastCheck = ms;
-		
-		String s = Utils.toJson(graphData, true);
-		FileOutputStream fos = new FileOutputStream(dataFile);
-		fos.write(s.getBytes()); fos.close();
-	}
-	
 	public static class GraphData
 	{
+		@Expose public Map<String, Integer> lastDownloads;
 		@Expose public Map<String, Map<Long, Integer>> projects;
-		@Expose public Long lastCheck;
 	}
 	
 	public static class Checker implements Runnable
 	{
 		public Thread thread = null;
+		private boolean first = true;
 		
 		public void start()
 		{
@@ -122,18 +52,87 @@ public class Graph
 			{
 				while(true)
 				{
+					if(!first) Main.refresh();
+					else first = false;
+					
 					logData();
 					
 					if(Main.config.refreshMinutes <= 0)
 					{ Main.config.refreshMinutes = 15; Main.config.save(); }
 					
-					Thread.sleep(Main.config.refreshMinutes * 60L * 1000L);
+					Thread.sleep(Main.config.refreshMinutes * 60000L);
 				}
 			}
 			catch(Exception e)
 			{ e.printStackTrace(); thread = null; }
 		}
 	}
+	
+	public static File dataFile;
+	public static GraphData graphData;
+	public static BufferedImage image_graph;
+	public static Checker checker;
+	
+	public static void init() throws Exception
+	{
+		dataFile = new File(Main.folder, "data.json");
+		graphData = Utils.fromJsonFile(dataFile, GraphData.class);
+		
+		if(!dataFile.exists()) dataFile.createNewFile();
+		
+		if(graphData == null)
+		{
+			graphData = new GraphData();
+			checkNull();
+		}
+		
+		image_graph = Main.loadImage("graph.png");
+		
+		checker = new Checker();
+		checker.start();
+	}
+	
+	public static void checkNull()
+	{
+		if(graphData.projects == null) graphData.projects = new HashMap<String, Map<Long, Integer>>();
+		if(graphData.lastDownloads == null) graphData.lastDownloads = new HashMap<String, Integer>();
+	}
+	
+	public static void logData() throws Exception
+	{
+		if(graphData == null) graphData = new GraphData();
+		
+		long ms = System.currentTimeMillis();
+		
+		//System.out.println("Data logged with ID " + ms + "!");
+		
+		checkNull();
+		
+		if(Projects.hasProjects()) for(Curse.Project p : Projects.list)
+		{
+			Map<Long, Integer> map = graphData.projects.get(p.modID);
+			
+			if(map == null)
+			{
+				map = new HashMap<Long, Integer>();
+				graphData.projects.put(p.modID, map);
+			}
+			
+			Integer lastDowns = graphData.lastDownloads.get(p.modID);
+			int d = p.getTotalDownloads();
+			
+			if(lastDowns == null || lastDowns.intValue() < d)
+			{
+				map.put(ms, d);
+				graphData.lastDownloads.put(p.modID, d);
+			}
+		}
+		
+		saveGraph();
+	}
+	
+	public static void saveGraph() throws Exception
+	{ checkNull(); Utils.toJsonFile(dataFile, graphData); }
 	
 	public static void displayGraph(final Curse.Project mod)
 	{
@@ -145,11 +144,6 @@ public class Graph
 			{
 				super.paint(g);
 				
-				/*try { logData(); }
-				catch(Exception e)
-				{ e.printStackTrace(); }
-				*/
-				
 				Graphics2D g2d = (Graphics2D) g;
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -159,9 +153,7 @@ public class Graph
 				
 				Map<Long, Integer> map = graphData.projects.get(mod.modID);
 				
-				if(map == null || map.isEmpty()) return;
-				
-				TimedValue values[] = new TimedValue[map.size() + 1];
+				TimedValue values[] = new TimedValue[map.size()];
 				
 				long minTime = -1;
 				long maxTime = -1;
@@ -171,7 +163,6 @@ public class Graph
 				int index = -1;
 				for(Long l : map.keySet())
 					values[++index] = new TimedValue(l, map.get(l));
-				values[++index] = new TimedValue(System.currentTimeMillis(), mod.getTotalDownloads());
 				
 				//values[values.length - 1] = new TimedValue(System.currentTimeMillis(), mod.getTotalDownloads());
 				
@@ -185,8 +176,6 @@ public class Graph
 					if(maxDown == -1 || values[i].down > maxDown) maxDown = values[i].down;
 				}
 				
-				//if(minTime == -1 || maxTime == -1 || minDown == -1 || maxDown == -1) return;
-				
 				g.drawString("" + maxDown, 4, 16);
 				g.drawString("" + ((maxDown + minDown) / 2), 4, h / 2 + 4);
 				g.drawString("" + minDown, 4, h - 8);
@@ -196,7 +185,8 @@ public class Graph
 				for(int i = 0; i < values.length; i++)
 				{
 					double x = Utils.map(values[i].time, minTime, maxTime, 0D, w);
-					double y = h - 1 - Utils.map(values[i].down, minDown, maxDown, 0D, h);
+					double y = h - Utils.map(values[i].down, minDown, maxDown, 0D, h);
+					y = Math.max(2, Math.min(y, h - 2));
 					points.add(new Point((int)x, (int)y));
 					
 					//System.out.println(x + ", " + y + "; " + values[i].time + ", " + values[i].down);
@@ -239,5 +229,48 @@ public class Graph
 		
 		public int compareTo(TimedValue o)
 		{ return time.compareTo(o.time); }
+	}
+
+	public static void clearData(long l)
+	{
+		long ms = System.currentTimeMillis();
+		
+		try
+		{
+			int i = 0;
+			
+			if(graphData.lastDownloads != null) graphData.lastDownloads.clear();
+			
+			if(graphData.projects != null) for(String s : graphData.projects.keySet())
+			{
+				if(graphData.projects != null)
+				{
+					Map<Long, Integer> m = graphData.projects.get(s);
+					
+					List<Long> keys = new ArrayList<Long>();
+					keys.addAll(m.keySet());
+					
+					for(Long l1 : keys)
+					{
+						if((ms - l1.longValue()) >= l)
+						{
+							m.remove(l1);
+							i++;
+						}
+					}
+				}
+			}
+			
+			
+			if(i > 0)
+			{
+				logData();
+				Main.refresh();
+			}
+			
+			Main.showInfo("Removed " + i + " values!");
+		}
+		catch(Exception e)
+		{ e.printStackTrace(); }
 	}
 }
