@@ -487,7 +487,7 @@ public class Main
 		
 		public void setDefaults()
 		{
-			if(refreshMinutes == null) refreshMinutes = 15;
+			if(refreshMinutes == null) refreshMinutes = 30;
 		}
 		
 		public void save()
