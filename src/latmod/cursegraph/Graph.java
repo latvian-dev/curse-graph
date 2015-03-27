@@ -229,7 +229,7 @@ public class Graph
 					else
 					{
 						x = Utils.map(time, minTime, maxTime, 0D, w);
-						y = h - Utils.map(downs, minDown, maxDown, h, 0D);
+						y = Utils.map(downs, minDown, maxDown, h, 0D);
 					}
 					
 					y = Math.max(2, Math.min(y, h - 2));

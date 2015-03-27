@@ -14,7 +14,7 @@ import com.google.gson.annotations.Expose;
 
 public class Main
 {
-	public static final int version = 3;
+	public static final int version = 4;
 	public static int latestVersion = -1;
 	
 	public static TrayIcon trayIcon = null;
