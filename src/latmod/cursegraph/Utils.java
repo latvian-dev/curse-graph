@@ -82,4 +82,10 @@ public class Utils
 	
 	public static long mapLong(long val, long min1, long max1, long min2, long max2)
 	{ return min2 + (max2 - min2) * ((val - min1) / (max1 - min1)); }
+	
+	public static double distSq(double x1, double y1, double x2, double y2)
+	{ return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2); }
+	
+	public static double dist(double x1, double y1, double x2, double y2)
+	{ return Math.sqrt(distSq(x1, y1, x2, y2)); }
 }

@@ -19,7 +19,14 @@ public class Projects
 	public static boolean hasProjects()
 	{ return !list.isEmpty(); }
 	
-	public static Curse.Project getProject(String title)
+	public static Curse.Project getProject(String id)
+	{
+		for(Curse.Project p : list)
+			if(p.projectID.equals(id)) return p;
+		return null;
+	}
+	
+	public static Curse.Project getProjectFromTitle(String title)
 	{
 		for(Curse.Project p : list)
 			if(p.title.equals(title)) return p;
@@ -58,7 +65,7 @@ public class Projects
 		
 		if(!loadOld()) addedAll = false;
 		
-		if(!addedAll) Main.showError("Some projects failed to load!");
+		if(!addedAll) Main.error("Some projects failed to load!");
 		
 		return hasProjects();
 	}
@@ -94,13 +101,13 @@ public class Projects
 			Curse.Project m = Utils.fromJson(s, Curse.Project.class);
 			if(m != null)
 			{
-				m.modID = id;
+				m.projectID = id;
 				m.typeID = t.ordinal();
 				
 				if(!list.contains(m)) list.add(m);
 				else
 				{
-					if(!silent) Main.showError("Duplicate ProjectID!");
+					if(!silent) Main.error("Duplicate ProjectID!");
 					return false;
 				}
 			}
@@ -108,7 +115,7 @@ public class Projects
 			if(!silent)
 			{
 				save();
-				Main.showInfo("Added '" + m.title + "'!");
+				Main.info("Added '" + m.title + "'!");
 				Graph.logData();
 			}
 			
@@ -117,7 +124,7 @@ public class Projects
 		catch(Exception ex)
 		{
 			ex.printStackTrace();
-			if(!silent) Main.showError("Mod '" + id + "' failed to load!");
+			if(!silent) Main.error("Mod '" + id + "' failed to load!");
 			else System.out.println("Failed to load " + id + " as " + t.name);
 			return false;
 		}
@@ -128,7 +135,7 @@ public class Projects
 		ArrayList<String> l = new ArrayList<String>();
 		
 		for(Curse.Project p : list)
-			l.add(p.getType() + "@" + p.modID);
+			l.add(p.getType() + "@" + p.projectID);
 		
 		try
 		{

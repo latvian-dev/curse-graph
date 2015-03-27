@@ -13,6 +13,9 @@ import com.google.gson.annotations.Expose;
 
 public class Graph
 {
+	private static int mouseX;
+	private static int mouseY;
+	
 	public static class GraphData
 	{
 		@Expose public Map<String, Integer> lastDownloads;
@@ -98,6 +101,28 @@ public class Graph
 		if(graphData.lastDownloads == null) graphData.lastDownloads = new HashMap<String, Integer>();
 	}
 	
+	@SuppressWarnings("deprecation")
+	public static String getTimeString(long time)
+	{
+		Date date = new Date(time);
+		String s = "";
+		s += formNum(date.getDate() + 1);
+		s += ".";
+		s += formNum(date.getMonth() + 1);
+		s += ".";
+		s += formNum(date.getYear() + 1900);
+		s += " ";
+		s += formNum(date.getHours());
+		s += ":";
+		s += formNum(date.getMinutes());
+		s += ":";
+		s += formNum(date.getSeconds());
+		return s;
+	}
+	
+	private static String formNum(int i)
+	{ return (i < 10) ? ("0" + i) : ("" + i); }
+	
 	public static void logData() throws Exception
 	{
 		if(graphData == null) graphData = new GraphData();
@@ -110,21 +135,21 @@ public class Graph
 		
 		if(Projects.hasProjects()) for(Curse.Project p : Projects.list)
 		{
-			Map<Long, Integer> map = graphData.projects.get(p.modID);
+			Map<Long, Integer> map = graphData.projects.get(p.projectID);
 			
 			if(map == null)
 			{
 				map = new HashMap<Long, Integer>();
-				graphData.projects.put(p.modID, map);
+				graphData.projects.put(p.projectID, map);
 			}
 			
-			Integer lastDowns = graphData.lastDownloads.get(p.modID);
+			Integer lastDowns = graphData.lastDownloads.get(p.projectID);
 			int d = p.getTotalDownloads();
 			
 			if(lastDowns == null || lastDowns.intValue() < d)
 			{
 				map.put(ms, d);
-				graphData.lastDownloads.put(p.modID, d);
+				graphData.lastDownloads.put(p.projectID, d);
 			}
 		}
 		
@@ -133,6 +158,17 @@ public class Graph
 	
 	public static void saveGraph() throws Exception
 	{ checkNull(); Utils.toJsonFile(dataFile, graphData); }
+	
+	private static class GraphPoint
+	{
+		public final int x;
+		public final int y;
+		public final long time;
+		public final int downs;
+		
+		public GraphPoint(double px, double py, long t, int d)
+		{ x = (int)px; y = (int)py; time = t; downs = d; }
+	}
 	
 	public static void displayGraph(final Curse.Project mod)
 	{
@@ -151,7 +187,7 @@ public class Graph
 				int w = getWidth();
 				int h = getHeight();
 				
-				Map<Long, Integer> map = graphData.projects.get(mod.modID);
+				Map<Long, Integer> map = graphData.projects.get(mod.projectID);
 				
 				TimedValue values[] = new TimedValue[map.size()];
 				
@@ -176,31 +212,60 @@ public class Graph
 					if(maxDown == -1 || values[i].down > maxDown) maxDown = values[i].down;
 				}
 				
-				g.drawString("" + maxDown, 4, 16);
-				g.drawString("" + ((maxDown + minDown) / 2), 4, h / 2 + 4);
-				g.drawString("" + minDown, 4, h - 8);
-				
-				ArrayList<Point> points = new ArrayList<Point>();
+				ArrayList<GraphPoint> points = new ArrayList<GraphPoint>();
 				
 				for(int i = 0; i < values.length; i++)
 				{
-					double x = Utils.map(values[i].time, minTime, maxTime, 0D, w);
-					double y = h - Utils.map(values[i].down, minDown, maxDown, 0D, h);
-					y = Math.max(2, Math.min(y, h - 2));
-					points.add(new Point((int)x, (int)y));
+					long time = values[i].time.longValue();
+					int downs = values[i].down.intValue();
 					
-					//System.out.println(x + ", " + y + "; " + values[i].time + ", " + values[i].down);
+					double x=0, y=0;
+					
+					if(Main.config.graphRelative.booleanValue())
+					{
+						x = Utils.map(time, minTime, maxTime, 0D, w);
+						y = Utils.map(downs, minDown, maxDown, h, 0D);
+					}
+					else
+					{
+						x = Utils.map(time, minTime, maxTime, 0D, w);
+						y = h - Utils.map(downs, minDown, maxDown, h, 0D);
+					}
+					
+					y = Math.max(2, Math.min(y, h - 2));
+					points.add(new GraphPoint(x, y, time, downs));
 				}
 				
-				for(int i = 0; i < points.size(); i++)
+				boolean isOver = false;
+				
+				for(int i = points.size() - 1; i >= 0; i--)
 				{
-					Point p = points.get(i);
-					Point pp = new Point(0, h - 1);
+					GraphPoint p = points.get(i);
+					GraphPoint pp = new GraphPoint(0, h - 1, 0, 0);
 					
 					if(i > 0) pp = points.get(i - 1);
 					
 					g.drawLine(pp.x, pp.y, p.x, p.y);
-					g.drawLine(p.x, h - 4, p.x, h);
+					//g.drawLine(p.x, h - 4, p.x, h);
+					g.drawOval(p.x - 3, p.y - 3, 6, 6);
+					
+					if(!isOver && p.time > 0L && Utils.distSq(mouseX, mouseY, p.x, p.y) <= 100D)
+					{
+						isOver = true;
+						g.drawString(getTimeString(p.time) + " :: " + p.downs, 4, 16);
+						Color c = g.getColor();
+						g.setColor(Color.red);
+						g.drawOval(p.x - 1, p.y - 1, 2, 2);
+						g.drawOval(p.x - 2, p.y - 2, 4, 4);
+						g.setColor(c);
+					}
+				}
+				
+				if(!isOver)
+				{
+					g.drawString("" + maxDown, 4, 16);
+					g.drawString("" + ((maxDown + minDown) / 2), 4, h / 2 + 4);
+					g.drawString("" + minDown, 4, h - 8);
 				}
 			}
 		};
@@ -208,12 +273,24 @@ public class Graph
 		picLabel.addMouseListener(new MouseListener()
 		{
 			public void mouseReleased(MouseEvent e) { }
-			public void mousePressed(MouseEvent e) { }
+			public void mousePressed(MouseEvent e) {  }
 			public void mouseExited(MouseEvent e) { }
 			public void mouseEntered(MouseEvent e) { }
 			
 			public void mouseClicked(MouseEvent e)
 			{ try { logData(); } catch(Exception ex) {} picLabel.repaint(); }
+		});
+		
+		picLabel.addMouseMotionListener(new MouseMotionListener()
+		{
+			public void mouseDragged(MouseEvent e) { }
+			
+			public void mouseMoved(MouseEvent e)
+			{
+				mouseX = e.getX();
+				mouseY = e.getY();
+				picLabel.repaint();
+			}
 		});
 		
 		JOptionPane.showMessageDialog(null, picLabel, "Graph: " + mod.title, JOptionPane.PLAIN_MESSAGE, null);
@@ -261,14 +338,13 @@ public class Graph
 				}
 			}
 			
-			
 			if(i > 0)
 			{
 				logData();
 				Main.refresh();
 			}
 			
-			Main.showInfo("Removed " + i + " values!");
+			Main.info("Removed " + i + " values!");
 		}
 		catch(Exception e)
 		{ e.printStackTrace(); }

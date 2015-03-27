@@ -15,7 +15,7 @@ import com.google.gson.annotations.Expose;
 public class Main
 {
 	public static final int version = 3;
-	public static boolean updateAvailable = false;
+	public static int latestVersion = -1;
 	
 	public static TrayIcon trayIcon = null;
 	public static BufferedImage imageReady, imageBusy;
@@ -32,28 +32,22 @@ public class Main
 			System.exit(1); return;
 		}
 		
+		System.out.println("Loading CurseGraph, Version: " + version + ", OS: " + OS.CURRENT);
+		
 		projectsFile = new File(folder, "projects.json");
 		configFile = new File(folder, "config.json");
 		
 		config = Utils.fromJsonFile(configFile, Config.class);
 		if(!configFile.exists()) configFile.createNewFile();
 		
-		if(config == null)
-		{
-			config = new Config();
-			config.setDefaults();
-			config.save();
-		}
+		if(config == null) config = new Config();
+		config.setDefaults();
+		config.save();
 		
 		try
 		{
 			String s = Utils.toString(new URL("http://pastebin.com/raw.php?i=RyuQPm4f").openStream());
-			
-			if(s != null)
-			{
-				int v = Integer.parseInt(s);
-				if(v > version) updateAvailable = true;
-			}
+			if(s != null) latestVersion = Integer.parseInt(s);
 		}
 		catch(Exception e)
 		{ e.printStackTrace(); System.exit(1); }
@@ -72,14 +66,29 @@ public class Main
 			{
 				String[] ml = Projects.getTitles();
 				
+				String lastID = null;
+				
 				if(ml.length > 0)
 				{
-					String s = (String)JOptionPane.showInputDialog(null, "Select the mod:", "Display Graph", JOptionPane.PLAIN_MESSAGE, null, ml, ml[0]);
+					if(config.lastProjectID != null)
+					{
+						Curse.Project p = Projects.getProject(config.lastProjectID);
+						if(p != null) lastID = p.title;
+					}
+					
+					if(lastID == null) lastID = ml[0];
+					
+					String s = (String)JOptionPane.showInputDialog(null, "Select the mod:", "Display Graph", JOptionPane.PLAIN_MESSAGE, null, ml, lastID);
 					
 					if(s != null)
 					{
-						Curse.Project p = Projects.getProject(s);
-						if(p != null) Graph.displayGraph(p);
+						Curse.Project p = Projects.getProjectFromTitle(s);
+						if(p != null)
+						{
+							config.lastProjectID = p.projectID;
+							config.save();
+							Graph.displayGraph(p);
+						}
 					}
 				}
 			}
@@ -89,7 +98,7 @@ public class Main
 		Projects.save();
 		Graph.init();
 		
-		if(updateAvailable) showInfo("Update available!");
+		if(latestVersion > version) info("Update available!");
 	}
 	
 	private static File getFolder()
@@ -110,12 +119,12 @@ public class Main
 		PopupMenu menu = new PopupMenu();
 		
 		{
-			MenuItem m1 = new MenuItem("Curse Graph v" + version + (updateAvailable ? " (Update available)" : ""));
+			MenuItem m1 = new MenuItem("Curse Graph v" + version + ((latestVersion > version) ? " (Update available)" : ""));
 			
 			m1.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
-				{ openURL("https://github.com/LatvianModder/CurseGraph/releases"); }
+				{ openURL("https://github.com/LatvianModder/CurseGraph/"); }
 			});
 			
 			menu.add(m1);
@@ -155,7 +164,7 @@ public class Main
 							Graph.checker.start();
 						}
 						catch(Exception ex)
-						{ showError("Invalid number!"); }
+						{ error("Invalid number!"); }
 					}
 				}
 			});
@@ -244,7 +253,7 @@ public class Main
 								Graph.clearData(i * 60000L);
 							}
 							catch(Exception ex)
-							{ showError("Invalid number!"); }
+							{ error("Invalid number!"); }
 						}
 					}
 				});
@@ -314,16 +323,22 @@ public class Main
 	private static long getH(int i)
 	{ return 1000L * 60L * 60L * i; }
 	
-	public static void showInfo(String string)
+	public static void info(String string)
 	{
 		JOptionPane.showMessageDialog(null, string, "Info", JOptionPane.INFORMATION_MESSAGE);
 		System.out.println(string);
 	}
 
-	public static void showError(String string)
+	public static void error(String string)
 	{
 		JOptionPane.showMessageDialog(null, string, "Error!", JOptionPane.ERROR_MESSAGE);
 		System.out.println(string);
+	}
+	
+	public static boolean showYesNo(String title, String question)
+	{
+		int i = JOptionPane.showConfirmDialog(null, question, title, JOptionPane.YES_NO_OPTION);
+		return i == JOptionPane.YES_OPTION;
 	}
 
 	public static void refresh0(PopupMenu menu) throws Exception
@@ -340,7 +355,7 @@ public class Main
 					PopupMenu info = new PopupMenu(p.title);
 					
 					{
-						MenuItem m1 = new MenuItem("ProjectID: " + p.modID + " [ " + p.getType().name + " ]");
+						MenuItem m1 = new MenuItem("Open Project");
 						m1.addActionListener(new ActionListener()
 						{
 							public void actionPerformed(ActionEvent e)
@@ -348,33 +363,6 @@ public class Main
 						});
 						
 						info.add(m1);
-					}
-					
-					if(p.authors.length == 1)
-					{
-						MenuItem m1 = new MenuItem("Author: " + p.authors[0]);
-						m1.addActionListener(new ActionListener()
-						{
-							public void actionPerformed(ActionEvent e)
-							{ openURL("http://minecraft.curseforge.com/members/" + p.authors[0]); }
-						});
-						
-						info.add(m1);
-					}
-					else
-					{
-						PopupMenu authors = new PopupMenu("Authors:");
-						for(final String s : p.authors)
-						{
-							MenuItem m1 = new MenuItem(s);
-							m1.addActionListener(new ActionListener()
-							{
-								public void actionPerformed(ActionEvent e)
-								{ openURL("http://minecraft.curseforge.com/members/" + s); }
-							});
-							authors.add(m1);
-						}
-						info.add(authors);
 					}
 					
 					{
@@ -388,39 +376,47 @@ public class Main
 						info.add(m1);
 					}
 					
+					PopupMenu info1 = new PopupMenu("Info");
+					
 					{
-						MenuItem remove = new MenuItem("Remove");
-						remove.addActionListener(new ActionListener()
+						if(p.authors.length == 1)
 						{
-							public void actionPerformed(ActionEvent e)
+							MenuItem m1 = new MenuItem("Author: " + p.authors[0]);
+							m1.addActionListener(new ActionListener()
 							{
-								int i = JOptionPane.showConfirmDialog(null, "Remove " + p.title + "?", "Confirm", JOptionPane.YES_NO_OPTION);
-								
-								if(i == JOptionPane.YES_OPTION)
+								public void actionPerformed(ActionEvent e)
+								{ openURL("http://minecraft.curseforge.com/members/" + p.authors[0]); }
+							});
+							
+							info1.add(m1);
+						}
+						else
+						{
+							PopupMenu authors = new PopupMenu("Authors:");
+							for(final String s : p.authors)
+							{
+								MenuItem m1 = new MenuItem(s);
+								m1.addActionListener(new ActionListener()
 								{
-									Projects.list.remove(p);
-									Projects.save();
-									refresh();
-								}
+									public void actionPerformed(ActionEvent e)
+									{ openURL("http://minecraft.curseforge.com/members/" + s); }
+								});
+								authors.add(m1);
 							}
-						});
+							
+							info1.add(authors);
+						}
 						
-						info.add(remove);
+						info1.add("Likes: " + p.likes);
+						info1.add("Favorites: " + p.favorites);
 					}
 					
-					info.addSeparator();
+					info1.add("All downloads: " + p.getTotalDownloads());
+					Integer mo = p.downloads.get("monthly");
+					if(mo != null && mo.intValue() > 0) info1.add("Monthly downloads: " + mo);
+					info1.add("Last file downloads: " + p.download.downloads);
 					
-					info.add("Likes / Favorites: " + p.likes + " / " + p.favorites);
-					
-					{
-						PopupMenu downloads = new PopupMenu("Downloads:");
-						downloads.add("All: " + p.getTotalDownloads());
-						
-						Integer mo = p.downloads.get("monthly");
-						if(mo != null && mo.intValue() > 0) downloads.add("Monthly: " + mo);
-						downloads.add("Last file: " + p.download.downloads);
-						info.add(downloads);
-					}
+					info.add(info1);
 					
 					{
 						PopupMenu downloads = new PopupMenu("Files:");
@@ -429,7 +425,7 @@ public class Main
 						all.addActionListener(new ActionListener()
 						{
 							public void actionPerformed(ActionEvent e)
-							{ openURL("http://minecraft.curseforge.com/" + p.getType().ID + "/" + p.modID + "/files"); }
+							{ openURL("http://minecraft.curseforge.com/" + p.getType().ID + "/" + p.projectID + "/files"); }
 						});
 						
 						downloads.add(all);
@@ -468,6 +464,24 @@ public class Main
 						info.add(downloads);
 					}
 					
+					{
+						MenuItem remove = new MenuItem("Remove");
+						remove.addActionListener(new ActionListener()
+						{
+							public void actionPerformed(ActionEvent e)
+							{
+								if(showYesNo("Confirm", "Remove " + p.title + "?"))
+								{
+									Projects.list.remove(p);
+									Projects.save();
+									refresh();
+								}
+							}
+						});
+						
+						info.add(remove);
+					}
+					
 					menu.add(info);
 				}
 				
@@ -484,10 +498,15 @@ public class Main
 	{
 		@Expose public Integer refreshMinutes;
 		@Expose public String lastProjectID;
+		@Expose public Boolean graphRelative;
+		@Expose public Integer graphLimit;
 		
 		public void setDefaults()
 		{
 			if(refreshMinutes == null) refreshMinutes = 30;
+			if(lastProjectID == null) lastProjectID = "";
+			if(graphRelative == null) graphRelative = false;
+			if(graphLimit == null) graphLimit = -1;
 		}
 		
 		public void save()

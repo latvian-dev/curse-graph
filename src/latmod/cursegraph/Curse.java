@@ -33,7 +33,7 @@ public class Curse
 	
 	public static class Project
 	{
-		public String modID;
+		public String projectID;
 		
 		@Expose public Integer typeID;
 		@Expose public String title;
@@ -56,7 +56,7 @@ public class Curse
 		private int totalDownloads = -1;
 		
 		public String toString()
-		{ return modID; }
+		{ return projectID; }
 		
 		public int hashCode()
 		{ return toString().hashCode(); }
