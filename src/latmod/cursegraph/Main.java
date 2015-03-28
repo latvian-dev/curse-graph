@@ -5,7 +5,6 @@ import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.*;
-import java.util.ArrayList;
 
 import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
@@ -14,7 +13,7 @@ import com.google.gson.annotations.Expose;
 
 public class Main
 {
-	public static final int version = 4;
+	public static final int version = 5;
 	public static int latestVersion = -1;
 	
 	public static TrayIcon trayIcon = null;
@@ -32,7 +31,7 @@ public class Main
 			System.exit(1); return;
 		}
 		
-		System.out.println("Loading CurseGraph, Version: " + version + ", OS: " + OS.CURRENT);
+		System.out.println("Loading CurseGraph, Version: " + version);
 		
 		projectsFile = new File(folder, "projects.json");
 		configFile = new File(folder, "config.json");
@@ -63,35 +62,7 @@ public class Main
 		trayIcon.addActionListener(new ActionListener()
 		{
 			public void actionPerformed(ActionEvent e)
-			{
-				String[] ml = Projects.getTitles();
-				
-				String lastID = null;
-				
-				if(ml.length > 0)
-				{
-					if(config.lastProjectID != null)
-					{
-						Curse.Project p = Projects.getProject(config.lastProjectID);
-						if(p != null) lastID = p.title;
-					}
-					
-					if(lastID == null) lastID = ml[0];
-					
-					String s = (String)JOptionPane.showInputDialog(null, "Select the mod:", "Display Graph", JOptionPane.PLAIN_MESSAGE, null, ml, lastID);
-					
-					if(s != null)
-					{
-						Curse.Project p = Projects.getProjectFromTitle(s);
-						if(p != null)
-						{
-							config.lastProjectID = p.projectID;
-							config.save();
-							Graph.displayGraph(p);
-						}
-					}
-				}
-			}
+			{ CurseGraphFrame.inst.setVisible(!CurseGraphFrame.inst.isVisible()); }
 		});
 		
 		refresh();
@@ -99,6 +70,8 @@ public class Main
 		Graph.init();
 		
 		if(latestVersion > version) info("Update available!");
+		
+		CurseGraphFrame.inst.setVisible(!config.startMinimized.booleanValue());
 	}
 	
 	private static File getFolder()
@@ -131,59 +104,6 @@ public class Main
 		}
 		
 		menu.addSeparator();
-		
-		{
-			MenuItem m1 = new MenuItem("Refresh");
-			
-			m1.addActionListener(new ActionListener()
-			{
-				public void actionPerformed(ActionEvent e)
-				{ try { refresh(); Graph.logData(); } catch(Exception ex)
-				{ ex.printStackTrace(); } }
-			});
-			
-			menu.add(m1);
-		}
-		
-		{
-			MenuItem m1 = new MenuItem("Set refresh interval");
-			
-			m1.addActionListener(new ActionListener()
-			{
-				public void actionPerformed(ActionEvent e)
-				{
-					String input = JOptionPane.showInputDialog("Set refresh minutes:", "" + config.refreshMinutes);
-					if(input != null && !input.isEmpty())
-					{
-						try
-						{
-							int i = Integer.parseInt(input);
-							config.refreshMinutes = Math.max(1, i);
-							config.save();
-							
-							Graph.checker.start();
-						}
-						catch(Exception ex)
-						{ error("Invalid number!"); }
-					}
-				}
-			});
-			
-			menu.add(m1);
-		}
-		
-		{
-			MenuItem m1 = new MenuItem("Open Data Folder");
-			
-			m1.addActionListener(new ActionListener()
-			{
-				public void actionPerformed(ActionEvent e)
-				{ try { Desktop.getDesktop().open(folder); }
-				catch(Exception ex) { ex.printStackTrace(); } }
-			});
-			
-			menu.add(m1);
-		}
 		
 		{
 			PopupMenu m1 = new PopupMenu("Clear older than...");
@@ -265,43 +185,6 @@ public class Main
 		}
 		
 		{
-			PopupMenu m1 = new PopupMenu("Add");
-			
-			for(final Curse.Type t : Curse.Type.VALUES)
-			{
-				MenuItem m2 = new MenuItem(t.name);
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{
-						try
-						{
-							String input = JOptionPane.showInputDialog("Enter " + t.name + "'s Curse ID here:", "");
-							if(input != null && !input.isEmpty())
-							{
-								Projects.add(t, input, false);
-								refresh();
-							}
-						}
-						catch(Exception ex)
-						{ ex.printStackTrace(); }
-					}
-				});
-				
-				m1.add(m2);
-			}
-			
-			menu.add(m1);
-		}
-		
-		menu.addSeparator();
-		
-		try { refresh0(menu); }
-		catch(Exception e)
-		{ e.printStackTrace(); menu.add("No mods loaded"); }
-		
-		{
 			MenuItem m1 = new MenuItem("Exit");
 			
 			m1.addActionListener(new ActionListener()
@@ -318,6 +201,7 @@ public class Main
 		
 		trayIcon.setPopupMenu(menu);
 		trayIcon.setImage(imageReady);
+		CurseGraphFrame.inst.refresh();
 	}
 	
 	private static long getH(int i)
@@ -340,155 +224,6 @@ public class Main
 		int i = JOptionPane.showConfirmDialog(null, question, title, JOptionPane.YES_NO_OPTION);
 		return i == JOptionPane.YES_OPTION;
 	}
-
-	public static void refresh0(PopupMenu menu) throws Exception
-	{
-		if(!Projects.load()) menu.add("No projects loaded");
-		else
-		{
-			for(final Curse.Type type : Curse.Type.VALUES)
-			{
-				ArrayList<Curse.Project> pl = Projects.getByType(type);
-				
-				for(final Curse.Project p : pl)
-				{
-					PopupMenu info = new PopupMenu(p.title);
-					
-					{
-						MenuItem m1 = new MenuItem("Open Project");
-						m1.addActionListener(new ActionListener()
-						{
-							public void actionPerformed(ActionEvent e)
-							{ openURL(p.url); }
-						});
-						
-						info.add(m1);
-					}
-					
-					{
-						MenuItem m1 = new MenuItem("Open Graph");
-						m1.addActionListener(new ActionListener()
-						{
-							public void actionPerformed(ActionEvent e)
-							{ Graph.displayGraph(p); }
-						});
-						
-						info.add(m1);
-					}
-					
-					PopupMenu info1 = new PopupMenu("Info");
-					
-					{
-						if(p.authors.length == 1)
-						{
-							MenuItem m1 = new MenuItem("Author: " + p.authors[0]);
-							m1.addActionListener(new ActionListener()
-							{
-								public void actionPerformed(ActionEvent e)
-								{ openURL("http://minecraft.curseforge.com/members/" + p.authors[0]); }
-							});
-							
-							info1.add(m1);
-						}
-						else
-						{
-							PopupMenu authors = new PopupMenu("Authors:");
-							for(final String s : p.authors)
-							{
-								MenuItem m1 = new MenuItem(s);
-								m1.addActionListener(new ActionListener()
-								{
-									public void actionPerformed(ActionEvent e)
-									{ openURL("http://minecraft.curseforge.com/members/" + s); }
-								});
-								authors.add(m1);
-							}
-							
-							info1.add(authors);
-						}
-						
-						info1.add("Likes: " + p.likes);
-						info1.add("Favorites: " + p.favorites);
-					}
-					
-					info1.add("All downloads: " + p.getTotalDownloads());
-					Integer mo = p.downloads.get("monthly");
-					if(mo != null && mo.intValue() > 0) info1.add("Monthly downloads: " + mo);
-					info1.add("Last file downloads: " + p.download.downloads);
-					
-					info.add(info1);
-					
-					{
-						PopupMenu downloads = new PopupMenu("Files:");
-						
-						MenuItem all = new MenuItem("All");
-						all.addActionListener(new ActionListener()
-						{
-							public void actionPerformed(ActionEvent e)
-							{ openURL("http://minecraft.curseforge.com/" + p.getType().ID + "/" + p.projectID + "/files"); }
-						});
-						
-						downloads.add(all);
-						
-						MenuItem latest = new MenuItem("Latest");
-						latest.addActionListener(new ActionListener()
-						{
-							public void actionPerformed(ActionEvent e)
-							{ openURL(p.download.url); }
-						});
-						
-						downloads.add(latest);
-						
-						for(String s : p.versions.keySet())
-						{
-							PopupMenu m1 = new PopupMenu(s);
-							
-							final Curse.Version[] v = p.versions.get(s);
-							for(int j = 0; j < v.length; j++)
-							{
-								final int fj = j;
-								MenuItem m2 = new MenuItem(v[j].name);
-								
-								m2.addActionListener(new ActionListener()
-								{
-									public void actionPerformed(ActionEvent e)
-									{ openURL(v[fj].url); }
-								});
-								
-								m1.add(m2);
-							}
-							
-							downloads.add(m1);
-						}
-						
-						info.add(downloads);
-					}
-					
-					{
-						MenuItem remove = new MenuItem("Remove");
-						remove.addActionListener(new ActionListener()
-						{
-							public void actionPerformed(ActionEvent e)
-							{
-								if(showYesNo("Confirm", "Remove " + p.title + "?"))
-								{
-									Projects.list.remove(p);
-									Projects.save();
-									refresh();
-								}
-							}
-						});
-						
-						info.add(remove);
-					}
-					
-					menu.add(info);
-				}
-				
-				if(!pl.isEmpty()) menu.addSeparator();
-			}
-		}
-	}
 	
 	public static void openURL(String s)
 	{ try { Desktop.getDesktop().browse(new URI(s)); }
@@ -500,6 +235,7 @@ public class Main
 		@Expose public String lastProjectID;
 		@Expose public Boolean graphRelative;
 		@Expose public Integer graphLimit;
+		@Expose public Boolean startMinimized;
 		
 		public void setDefaults()
 		{
@@ -507,6 +243,7 @@ public class Main
 			if(lastProjectID == null) lastProjectID = "";
 			if(graphRelative == null) graphRelative = false;
 			if(graphLimit == null) graphLimit = -1;
+			if(startMinimized == null) startMinimized = true;
 		}
 		
 		public void save()

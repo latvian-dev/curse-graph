@@ -19,6 +19,14 @@ public class Curse
 		
 		Type(String s, String s1)
 		{ ID = s; name = s1; }
+		
+		public static String[] getAllNames()
+		{
+			String[] s = new String[VALUES.length];
+			for(int i = 0; i < VALUES.length; i++)
+				s[i] = VALUES[i].name;
+			return s;
+		}
 
 		public static Type get(String s)
 		{
@@ -27,11 +35,18 @@ public class Curse
 			return null;
 		}
 		
+		public static Type getFromName(String s)
+		{
+			for(Type t : VALUES)
+				if(s.equals(t.name)) return t;
+			return null;
+		}
+		
 		public String toString()
 		{ return ID; }
 	}
 	
-	public static class Project
+	public static class Project implements Comparable<Project>
 	{
 		public String projectID;
 		
@@ -85,6 +100,9 @@ public class Curse
 		
 		public Type getType()
 		{ return Type.VALUES[typeID]; }
+		
+		public int compareTo(Project o)
+		{ return title.compareTo(o.title); }
 	}
 	
 	public static class Version
