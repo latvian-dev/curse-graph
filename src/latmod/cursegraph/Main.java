@@ -31,7 +31,7 @@ public class Main
 			System.exit(1); return;
 		}
 		
-		System.out.println("Loading CurseGraph, Version: " + version);
+		System.out.println("Loading CurseGraph, Version: " + version + " @ " + Graph.getTimeString(System.currentTimeMillis()));
 		
 		projectsFile = new File(folder, "projects.json");
 		configFile = new File(folder, "config.json");

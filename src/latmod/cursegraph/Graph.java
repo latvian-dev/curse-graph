@@ -100,7 +100,7 @@ public class Graph
 	{
 		Date date = new Date(time);
 		String s = "";
-		s += formNum(date.getDate() + 1);
+		s += formNum(date.getDate());
 		s += ".";
 		s += formNum(date.getMonth() + 1);
 		s += ".";
