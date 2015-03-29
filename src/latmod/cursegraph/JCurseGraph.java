@@ -4,24 +4,13 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.util.*;
+import java.util.List;
 
 import javax.swing.*;
 
 public class JCurseGraph extends JLabel implements MouseMotionListener, MouseListener
 {
 	private static final long serialVersionUID = 1L;
-	
-	private static class TimedValue implements Comparable<TimedValue>
-	{
-		public Long time;
-		public Integer down;
-		
-		public TimedValue(Long t, Integer v)
-		{ time = t; down = v; }
-		
-		public int compareTo(TimedValue o)
-		{ return time.compareTo(o.time); }
-	}
 	
 	private static class GraphPoint
 	{
@@ -91,53 +80,61 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 		
-		Map<Long, Integer> map = Graph.graphData.projects.get(project.projectID);
-		
-		TimedValue values[] = new TimedValue[map.size()];
+		List<Graph.TimedDown> values = Graph.getAllKeys(project.projectID);
 		
 		long minTime = -1;
 		long maxTime = -1;
 		int minDown = -1;
 		int maxDown = -1;
 		
-		int index = -1;
-		for(Long l : map.keySet())
-			values[++index] = new TimedValue(l, map.get(l));
+		//values.add(new Graph.TimedDown(System.currentTimeMillis(), project.getTotalDownloads()));
 		
-		//values[values.length - 1] = new TimedValue(System.currentTimeMillis(), mod.getTotalDownloads());
-		
-		Arrays.sort(values);
-		
-		for(int i = 0; i < values.length; i++)
+		for(int i = 0; i < values.size(); i++)
 		{
-			if(minTime == -1 || values[i].time < minTime) minTime = values[i].time;
-			if(maxTime == -1 || values[i].time > maxTime) maxTime = values[i].time;
-			if(minDown == -1 || values[i].down < minDown) minDown = values[i].down;
-			if(maxDown == -1 || values[i].down > maxDown) maxDown = values[i].down;
+			Graph.TimedDown t = values.get(i);
+			if(minTime == -1 || t.time < minTime) minTime = t.time;
+			if(maxTime == -1 || t.time > maxTime) maxTime = t.time;
+			if(minDown == -1 || t.down < minDown) minDown = t.down;
+			if(maxDown == -1 || t.down > maxDown) maxDown = t.down;
 		}
 		
 		ArrayList<GraphPoint> points = new ArrayList<GraphPoint>();
 		
-		for(int i = 0; i < values.length; i++)
+		if(Main.config.graphLimit.intValue() > 0)
 		{
-			long time = values[i].time.longValue();
-			int downs = values[i].down.intValue();
+			int pc = Main.config.graphLimit.intValue() * 4;
 			
-			double x=0, y=0;
+			long currentTime = System.currentTimeMillis();
+			long h24 = (24000L * 3600L);
 			
-			if(Main.config.graphRelative.booleanValue())
+			for(int i = 0; i < pc; i++)
 			{
-				x = Utils.map(time, minTime, maxTime, 0D, w);
-				y = Utils.map(downs, minDown, maxDown, h, 0D);
-			}
-			else
-			{
-				x = Utils.map(time, minTime, maxTime, 0D, w);
-				y = Utils.map(downs, minDown, maxDown, h, 0D);
+				long time = currentTime - h24 + (i * 3600000L);
+				
+				//long time = values[i].time.longValue();
+				//int downs = values[i].down.intValue();
+				
+				double x = Utils.map(minTime, minTime, maxTime, 0D, w);
+				double y = Utils.map(minDown, minDown, maxDown, h, 0D);
+				
+				y = Math.max(2, Math.min(y, h - 2));
+				points.add(new GraphPoint(x, y, time, 0));
 			}
 			
-			y = Math.max(2, Math.min(y, h - 2));
-			points.add(new GraphPoint(x, y, time, downs));
+		}
+		else
+		{
+			for(int i = 0; i < values.size(); i++)
+			{
+				Graph.TimedDown t = values.get(i);
+				
+				double x = Utils.map(t.time, minTime, maxTime, 0D, w);
+				double y = Utils.map(t.down, minDown, maxDown, h, 0D);
+				
+				y = Math.max(2, Math.min(y, h - 2));
+				points.add(new GraphPoint(x, y, t.time, t.down));
+			}
+			
 		}
 		
 		boolean isOver = false;

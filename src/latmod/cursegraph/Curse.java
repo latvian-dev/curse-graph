@@ -52,21 +52,24 @@ public class Curse
 		
 		@Expose public Integer typeID;
 		@Expose public String title;
-		@Expose public String game;
-		@Expose public String category;
 		@Expose public String url;
 		@Expose public String thumbnail;
 		@Expose public String[] authors;
 		@Expose public Map<String, Integer> downloads;
 		@Expose public Integer favorites;
 		@Expose public Integer likes;
-		@Expose public String updated_at;
-		@Expose public String created_at;
 		@Expose public String project_url;
-		@Expose public String release_type;
-		@Expose public String license;
 		@Expose public Version download;
 		@Expose public Map<String, Version[]> versions;
+		
+		public boolean checkValid()
+		{
+			if(title == null) return false;
+			if(url == null) return false;
+			if(download == null) return false;
+			if(versions == null) return false;
+			return true;
+		}
 		
 		private int totalDownloads = -1;
 		

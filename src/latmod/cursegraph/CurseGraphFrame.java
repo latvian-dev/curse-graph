@@ -2,6 +2,7 @@ package latmod.cursegraph;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.util.*;
 
 import javax.swing.*;
 
@@ -10,48 +11,129 @@ public class CurseGraphFrame extends JFrame
 	private static final long serialVersionUID = 1L;
 	public static final CurseGraphFrame inst = new CurseGraphFrame();
 	
-	public final JTabbedPane pane = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
+	public final JTabbedPane pane = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.WRAP_TAB_LAYOUT);
 	
 	public CurseGraphFrame()
 	{
 		setTitle("CurseGraph v" + Main.version);
 		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		add(pane);
+		this.setSize(700, 500);
 		pane.setSize(700, 500);
 		setResizable(true);
 		refresh();
 		pack();
 		setLocationRelativeTo(null);
+		
+		setVisible(!Main.config.startMinimized.booleanValue());
+		setIconImage(Main.imageReady);
 	}
 	
 	public void refresh()
 	{
 		pane.removeAll();
+		pane.setTabLayoutPolicy(Main.config.scrollTabs.booleanValue() ? JTabbedPane.SCROLL_TAB_LAYOUT : JTabbedPane.WRAP_TAB_LAYOUT);
+		
+		ArrayList<String> componentsAdded = new ArrayList<String>();
+		componentsAdded.add("Settings");
 		
 		JPanel settingsPanel = new JPanel(false);
 		
-		//settingsPanel.setLayout(new BoxLayout(settingsPanel, BoxLayout.Y_AXIS));
-		BorderLayout layout = new BorderLayout();
-		layout.setHgap(40);
-		layout.setVgap(50);
+		GridLayout layout = new GridLayout();
+		layout.setColumns(1);
+		layout.setRows(0);
+		layout.setVgap(5);
 		settingsPanel.setLayout(layout);
 		
 		{
-			JButton b = new JButton("Refresh");
-			b.setAlignmentX(Component.CENTER_ALIGNMENT);
+			JButton b = new JButton("Add");
 			b.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
-				{ try { refresh(); Graph.logData(); } catch(Exception ex)
+				{
+					try
+					{
+						String types[] = Curse.Type.getAllNames();
+						String type0 = (String)JOptionPane.showInputDialog(null, "Select the mod:", "Add new Project", JOptionPane.PLAIN_MESSAGE, null, types, Curse.Type.MOD.name);
+						if(type0 == null || type0.isEmpty()) return;
+						Curse.Type t = Curse.Type.getFromName(type0);
+						
+						String input = JOptionPane.showInputDialog("Enter " + t.name + "'s ProjectID here:", "");
+						if(input != null && !input.trim().isEmpty())
+						{
+							Projects.add(t, input.trim(), false);
+							Main.refresh();
+						}
+					}
+					catch(Exception ex)
+					{ ex.printStackTrace(); }
+				}
+			});
+			
+			settingsPanel.add(b);
+		}
+		
+		{
+			JButton b = new JButton("Refresh");
+			b.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{ try { Main.refresh(); Graph.logData(); } catch(Exception ex)
 				{ ex.printStackTrace(); } }
 			});
 			
-			settingsPanel.add(b, BorderLayout.LINE_END);
+			settingsPanel.add(b);
+		}
+		
+		{
+			JButton b = new JButton("Set graph type");
+			b.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{
+					try
+					{
+						int times[] = { -1, 1, 24, 24 * 7, 24 * 30 };
+						String types[] = { "None", "Hour", "Day", "Week", "Month" };
+						
+						String type0 = (String)JOptionPane.showInputDialog(null, "Select graph type:", "Graph type", JOptionPane.PLAIN_MESSAGE, null, types, types[0]);
+						if(type0 == null || type0.isEmpty()) return;
+						
+						for(int i = 0; i < types.length; i++)
+						{
+							if(type0.equals(types[i]))
+							{
+								Main.config.graphLimit = times[i];
+								Main.refresh();
+							}
+						}
+					}
+					catch(Exception ex)
+					{ ex.printStackTrace(); }
+				}
+			});
+			
+			//settingsPanel.add(b);
+		}
+		
+		{
+			final boolean scrollTabs = Main.config.scrollTabs.booleanValue();
+			final JButton b = new JButton("Scrolling Tabs " + (scrollTabs ? "[ON]" : "[OFF]"));
+			b.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{
+					Main.config.scrollTabs = !Main.config.scrollTabs.booleanValue();
+					Main.config.save();
+					refresh();
+				}
+			});
+			
+			settingsPanel.add(b);
 		}
 		
 		{
 			JButton b = new JButton("Set refresh interval");
-			b.setAlignmentX(Component.CENTER_ALIGNMENT);
 			b.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
@@ -68,46 +150,16 @@ public class CurseGraphFrame extends JFrame
 							Graph.checker.start();
 						}
 						catch(Exception ex)
-						{ Main.error("Invalid number!"); }
+						{ Main.error("Invalid number!", false); }
 					}
 				}
 			});
 			
-			settingsPanel.add(b, BorderLayout.LINE_START);
-		}
-		
-		{
-			JButton b = new JButton("Add");
-			b.setAlignmentX(Component.CENTER_ALIGNMENT);
-			b.addActionListener(new ActionListener()
-			{
-				public void actionPerformed(ActionEvent e)
-				{
-					try
-					{
-						String types[] = Curse.Type.getAllNames();
-						String type0 = (String)JOptionPane.showInputDialog(null, "Select the mod:", "Add new Project", JOptionPane.PLAIN_MESSAGE, null, types, Curse.Type.MOD.name);
-						if(type0 == null || type0.isEmpty()) return;
-						Curse.Type t = Curse.Type.getFromName(type0);
-						
-						String input = JOptionPane.showInputDialog("Enter " + t.name + "'s ProjectID here:", "");
-						if(input != null && !input.isEmpty())
-						{
-							Projects.add(t, input, false);
-							refresh();
-						}
-					}
-					catch(Exception ex)
-					{ ex.printStackTrace(); }
-				}
-			});
-			
-			settingsPanel.add(b, BorderLayout.CENTER);
+			settingsPanel.add(b);
 		}
 		
 		{
 			JButton b = new JButton("Open data folder");
-			b.setAlignmentX(Component.CENTER_ALIGNMENT);
 			b.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
@@ -115,24 +167,106 @@ public class CurseGraphFrame extends JFrame
 				catch(Exception ex) { ex.printStackTrace(); } }
 			});
 			
-			settingsPanel.add(b, BorderLayout.PAGE_START);
+			settingsPanel.add(b);
 		}
 		
+		/*
+		{
+			PopupMenu m1 = new PopupMenu("Clear older than...");
+			
+			{
+				MenuItem m2 = new MenuItem("Month");
+				
+				m2.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e)
+					{ Graph.clearData(getH(24 * 30)); }
+				});
+				
+				m1.add(m2);
+			}
+			
+			{
+				MenuItem m2 = new MenuItem("Week");
+				
+				m2.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e)
+					{ Graph.clearData(getH(24 * 7)); }
+				});
+				
+				m1.add(m2);
+			}
+			
+			{
+				MenuItem m2 = new MenuItem("Day");
+				
+				m2.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e)
+					{ Graph.clearData(getH(24)); }
+				});
+				
+				m1.add(m2);
+			}
+			
+			{
+				MenuItem m2 = new MenuItem("Hour");
+				
+				m2.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e)
+					{ Graph.clearData(getH(1)); }
+				});
+				
+				m1.add(m2);
+			}
+			
+			{
+				MenuItem m2 = new MenuItem("X Minues");
+				
+				m2.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e)
+					{
+						String input = JOptionPane.showInputDialog("X Minutes:", "10");
+						if(input != null && !input.isEmpty())
+						{
+							try
+							{
+								int i = Integer.parseInt(input);
+								i = Math.max(1, i);
+								Graph.clearData(i * 60000L);
+							}
+							catch(Exception ex)
+							{ error("Invalid number!", false); }
+						}
+					}
+				});
+				
+				m1.add(m2);
+			}
+			
+			menu.add(m1);
+		}
+		*/
 		{
 			JButton b = new JButton("Exit");
-			b.setAlignmentX(Component.CENTER_ALIGNMENT);
 			b.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
 				{ System.exit(0); }
 			});
 			
-			settingsPanel.add(b, BorderLayout.PAGE_END);
+			settingsPanel.add(b);
 		}
 		
 		addPanel("Settings", settingsPanel);
 		
-		for(final Curse.Project p : Projects.list)
+		Curse.Project[] projectsList = Projects.list.toArray(new Curse.Project[0]);
+		Arrays.sort(projectsList);
+		
+		for(final Curse.Project p : projectsList)
 		{
 			final JPanel panel = new JPanel(false);
 			
@@ -247,7 +381,7 @@ public class CurseGraphFrame extends JFrame
 						{
 							Projects.list.remove(p);
 							Projects.save();
-							refresh();
+							Main.refresh();
 						}
 					}
 				});
@@ -259,8 +393,31 @@ public class CurseGraphFrame extends JFrame
 			
 			panel.add(new JCurseGraph(panel, p));
 			addPanel(p.title, panel);
+			componentsAdded.add(p.title);
 		}
+		
+		JPopupMenu menuAll = new JPopupMenu();
+		
+		for(int i = 0; i < componentsAdded.size(); i++)
+		{
+			final JMenuItem item = new JMenuItem(componentsAdded.get(i));
+			final int index = i;
+			item.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{
+					pane.setSelectedIndex(index);
+				}
+			});
+			
+			menuAll.add(item);
+		}
+		
+		pane.setComponentPopupMenu(menuAll);
 	}
+	
+	//private static long getH(int i)
+	//{ return 1000L * 60L * 60L * i; }
 	
 	public void addPanel(String title, JComponent c)
 	{ pane.addTab(title, null, c, title); }

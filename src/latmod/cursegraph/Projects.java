@@ -65,7 +65,7 @@ public class Projects
 		
 		if(!loadOld()) addedAll = false;
 		
-		if(!addedAll) Main.error("Some projects failed to load!");
+		if(!addedAll) Main.error("Some projects failed to load!", false);
 		
 		return hasProjects();
 	}
@@ -99,35 +99,35 @@ public class Projects
 			String s = sc.useDelimiter("\\A").next(); sc.close();
 			
 			Curse.Project m = Utils.fromJson(s, Curse.Project.class);
-			if(m != null)
+			if(m != null && m.checkValid())
 			{
 				m.projectID = id;
 				m.typeID = t.ordinal();
 				
-				if(!list.contains(m)) list.add(m);
-				else
+				if(list.contains(m))
 				{
-					if(!silent) Main.error("Duplicate ProjectID!");
+					Main.error("Duplicate ProjectID '" + id + "'!", silent);
 					return false;
 				}
+				
+				list.add(m);
+				
+				if(!silent)
+				{
+					save();
+					Graph.logData();
+				}
+				
+				Main.info("Added '" + m.title + "'!", silent);
+				
+				return true;
 			}
-			
-			if(!silent)
-			{
-				save();
-				Main.info("Added '" + m.title + "'!");
-				Graph.logData();
-			}
-			
-			return true;
 		}
 		catch(Exception ex)
-		{
-			ex.printStackTrace();
-			if(!silent) Main.error("Mod '" + id + "' failed to load!");
-			else System.out.println("Failed to load " + id + " as " + t.name);
-			return false;
-		}
+		{ ex.printStackTrace(); }
+		
+		Main.error("Project with ID '" + id + "' failed to load!", silent);
+		return false;
 	}
 	
 	public static void save()

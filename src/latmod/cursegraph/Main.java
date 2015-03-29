@@ -13,7 +13,7 @@ import com.google.gson.annotations.Expose;
 
 public class Main
 {
-	public static final int version = 5;
+	public static final int version = 6;
 	public static int latestVersion = -1;
 	
 	public static TrayIcon trayIcon = null;
@@ -23,25 +23,27 @@ public class Main
 	public static File projectsFile, configFile;
 	public static Config config;
 	
+	private static boolean firstRefresh;
+	
 	public static void main(String[] args) throws Exception
 	{
-		if(!SystemTray.isSupported() || !Desktop.isDesktopSupported())
+		if(!Desktop.isDesktopSupported())
 		{
-			System.out.println("Invalid system!");
+			System.out.println("Desktop not supported!");
 			System.exit(1); return;
 		}
 		
 		System.out.println("Loading CurseGraph, Version: " + version + " @ " + Graph.getTimeString(System.currentTimeMillis()));
 		
-		projectsFile = new File(folder, "projects.json");
 		configFile = new File(folder, "config.json");
-		
 		config = Utils.fromJsonFile(configFile, Config.class);
 		if(!configFile.exists()) configFile.createNewFile();
 		
 		if(config == null) config = new Config();
 		config.setDefaults();
 		config.save();
+		
+		projectsFile = new File(config.projectsFileLocation);
 		
 		try
 		{
@@ -54,24 +56,36 @@ public class Main
 		imageReady = loadImage("trayIcon.png");
 		imageBusy = loadImage("trayIconBusy.png");
 		
+		firstRefresh = true;
+		
 		trayIcon = new TrayIcon(imageReady);
 		trayIcon.setImageAutoSize(true);
 		trayIcon.setToolTip("Curse Graph");
-		SystemTray.getSystemTray().add(trayIcon);
 		
-		trayIcon.addActionListener(new ActionListener()
+		if(!Utils.contains(args, "notray"))
 		{
-			public void actionPerformed(ActionEvent e)
-			{ CurseGraphFrame.inst.setVisible(!CurseGraphFrame.inst.isVisible()); }
-		});
+			if(!SystemTray.isSupported())
+			{
+				System.out.println("System tray not supported!");
+				System.exit(1); return;
+			}
+			
+			SystemTray.getSystemTray().add(trayIcon);
+			
+			trayIcon.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{ CurseGraphFrame.inst.setVisible(!CurseGraphFrame.inst.isVisible()); }
+			});
+		}
 		
 		refresh();
 		Projects.save();
 		Graph.init();
 		
-		if(latestVersion > version) info("Update available!");
+		if(latestVersion > version) info("Update available!", false);
 		
-		CurseGraphFrame.inst.setVisible(!config.startMinimized.booleanValue());
+		firstRefresh = false;
 	}
 	
 	private static File getFolder()
@@ -87,6 +101,7 @@ public class Main
 	public static void refresh()
 	{
 		trayIcon.setImage(imageBusy);
+		if(!firstRefresh) CurseGraphFrame.inst.setIconImage(imageBusy);
 		Projects.load();
 		
 		PopupMenu menu = new PopupMenu();
@@ -106,85 +121,6 @@ public class Main
 		menu.addSeparator();
 		
 		{
-			PopupMenu m1 = new PopupMenu("Clear older than...");
-			
-			{
-				MenuItem m2 = new MenuItem("Month");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{ Graph.clearData(getH(24 * 30)); }
-				});
-				
-				m1.add(m2);
-			}
-			
-			{
-				MenuItem m2 = new MenuItem("Week");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{ Graph.clearData(getH(24 * 7)); }
-				});
-				
-				m1.add(m2);
-			}
-			
-			{
-				MenuItem m2 = new MenuItem("Day");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{ Graph.clearData(getH(24)); }
-				});
-				
-				m1.add(m2);
-			}
-			
-			{
-				MenuItem m2 = new MenuItem("Hour");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{ Graph.clearData(getH(1)); }
-				});
-				
-				m1.add(m2);
-			}
-			
-			{
-				MenuItem m2 = new MenuItem("X Minues");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{
-						String input = JOptionPane.showInputDialog("X Minutes:", "10");
-						if(input != null && !input.isEmpty())
-						{
-							try
-							{
-								int i = Integer.parseInt(input);
-								i = Math.max(1, i);
-								Graph.clearData(i * 60000L);
-							}
-							catch(Exception ex)
-							{ error("Invalid number!"); }
-						}
-					}
-				});
-				
-				m1.add(m2);
-			}
-			
-			menu.add(m1);
-		}
-		
-		{
 			MenuItem m1 = new MenuItem("Exit");
 			
 			m1.addActionListener(new ActionListener()
@@ -201,21 +137,19 @@ public class Main
 		
 		trayIcon.setPopupMenu(menu);
 		trayIcon.setImage(imageReady);
+		if(!firstRefresh) CurseGraphFrame.inst.setIconImage(imageReady);
 		CurseGraphFrame.inst.refresh();
 	}
 	
-	private static long getH(int i)
-	{ return 1000L * 60L * 60L * i; }
-	
-	public static void info(String string)
+	public static void info(String string, boolean silent)
 	{
-		JOptionPane.showMessageDialog(null, string, "Info", JOptionPane.INFORMATION_MESSAGE);
+		if(!silent) JOptionPane.showMessageDialog(null, string, "Info", JOptionPane.INFORMATION_MESSAGE);
 		System.out.println(string);
 	}
 
-	public static void error(String string)
+	public static void error(String string, boolean silent)
 	{
-		JOptionPane.showMessageDialog(null, string, "Error!", JOptionPane.ERROR_MESSAGE);
+		if(!silent) JOptionPane.showMessageDialog(null, string, "Error!", JOptionPane.ERROR_MESSAGE);
 		System.out.println(string);
 	}
 	
@@ -232,18 +166,20 @@ public class Main
 	public static class Config
 	{
 		@Expose public Integer refreshMinutes;
-		@Expose public String lastProjectID;
-		@Expose public Boolean graphRelative;
 		@Expose public Integer graphLimit;
 		@Expose public Boolean startMinimized;
+		@Expose public String dataFileLocation;
+		@Expose public String projectsFileLocation;
+		@Expose public Boolean scrollTabs;
 		
 		public void setDefaults()
 		{
 			if(refreshMinutes == null) refreshMinutes = 30;
-			if(lastProjectID == null) lastProjectID = "";
-			if(graphRelative == null) graphRelative = false;
 			if(graphLimit == null) graphLimit = -1;
 			if(startMinimized == null) startMinimized = true;
+			if(dataFileLocation == null) dataFileLocation = new File(folder, "data.json").getAbsolutePath();
+			if(projectsFileLocation == null) projectsFileLocation = new File(folder, "projects.json").getAbsolutePath();
+			if(scrollTabs == null) scrollTabs = true;
 		}
 		
 		public void save()

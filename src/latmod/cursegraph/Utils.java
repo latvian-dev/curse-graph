@@ -88,4 +88,17 @@ public class Utils
 	
 	public static double dist(double x1, double y1, double x2, double y2)
 	{ return Math.sqrt(distSq(x1, y1, x2, y2)); }
+
+	public static boolean contains(Object[] oa, Object o)
+	{
+		if(oa == null || oa.length == 0 || o == null) return false;
+		
+		for(int i = 0; i < oa.length; i++)
+		{
+			if(oa[i] != null && (oa[i] == o || oa[i].equals(o)))
+				return true;
+		}
+		
+		return false;
+	}
 }

@@ -68,13 +68,25 @@ public class Graph
 		}
 	}
 	
+	public static class TimedDown implements Comparable<TimedDown>
+	{
+		public long time;
+		public int down;
+		
+		public TimedDown(long t, int v)
+		{ time = t; down = v; }
+		
+		public int compareTo(TimedDown o)
+		{ return new Long(time).compareTo(o.time); }
+	}
+	
 	public static File dataFile;
 	public static GraphData graphData;
 	public static Checker checker;
 	
 	public static void init() throws Exception
 	{
-		dataFile = new File(Main.folder, "data.json");
+		dataFile = new File(Main.config.dataFileLocation);
 		graphData = Utils.fromJsonFile(dataFile, GraphData.class);
 		
 		if(!dataFile.exists()) dataFile.createNewFile();
@@ -117,13 +129,49 @@ public class Graph
 	private static String formNum(int i)
 	{ return (i < 10) ? ("0" + i) : ("" + i); }
 	
+	public static ArrayList<TimedDown> getAllKeys(String mod)
+	{
+		ArrayList<TimedDown> alist = new ArrayList<TimedDown>();
+		
+		Map<Long, Integer> map = graphData.projects.get(mod);
+		
+		if(map == null || map.isEmpty()) return alist;
+		
+		TimedDown[] list = new TimedDown[map.size()];
+		
+		Iterator<Long> keys = map.keySet().iterator();
+		Iterator<Integer> values = map.values().iterator();
+		
+		int i = -1; while(keys.hasNext())
+			list[++i] = new TimedDown(keys.next(), values.next());
+		
+		Arrays.sort(list);
+		
+		for(i = 0; i < list.length; i++)
+			alist.add(list[i]);
+		
+		return alist;
+	}
+	
+	public static ArrayList<TimedDown> getKeys(String mod, long min, long max)
+	{
+		ArrayList<TimedDown> al = getAllKeys(mod);
+		
+		for(int i = 0; i < al.size(); i++)
+		{
+			long v = al.get(i).time;
+			if(v < min && v > max)
+				al.remove(i);
+		}
+		
+		return al;
+	}
+	
 	public static void logData() throws Exception
 	{
 		if(graphData == null) graphData = new GraphData();
 		
 		long ms = System.currentTimeMillis();
-		
-		//System.out.println("Data logged with ID " + ms + "!");
 		
 		checkNull();
 		
@@ -189,7 +237,7 @@ public class Graph
 				Main.refresh();
 			}
 			
-			Main.info("Removed " + i + " values!");
+			Main.info("Removed " + i + " values!", false);
 		}
 		catch(Exception e)
 		{ e.printStackTrace(); }
