@@ -81,60 +81,67 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 		g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 		
 		List<Graph.TimedDown> values = Graph.getAllKeys(project.projectID);
+		//values.add(new Graph.TimedDown(System.currentTimeMillis(), project.getTotalDownloads()));
+		
+		ArrayList<GraphPoint> points = new ArrayList<GraphPoint>();
 		
 		long minTime = -1;
 		long maxTime = -1;
 		int minDown = -1;
 		int maxDown = -1;
 		
-		//values.add(new Graph.TimedDown(System.currentTimeMillis(), project.getTotalDownloads()));
-		
-		for(int i = 0; i < values.size(); i++)
+		if(Main.config.graphRelative.booleanValue())
 		{
-			Graph.TimedDown t = values.get(i);
-			if(minTime == -1 || t.time < minTime) minTime = t.time;
-			if(maxTime == -1 || t.time > maxTime) maxTime = t.time;
-			if(minDown == -1 || t.down < minDown) minDown = t.down;
-			if(maxDown == -1 || t.down > maxDown) maxDown = t.down;
-		}
-		
-		ArrayList<GraphPoint> points = new ArrayList<GraphPoint>();
-		
-		if(Main.config.graphLimit.intValue() > 0)
-		{
-			int pc = Main.config.graphLimit.intValue() * 4;
-			
-			long currentTime = System.currentTimeMillis();
-			long h24 = (24000L * 3600L);
-			
-			for(int i = 0; i < pc; i++)
+			if(values.size() >= 2)
 			{
-				long time = currentTime - h24 + (i * 3600000L);
+				Graph.TimedDown min = values.get(0);
+				Graph.TimedDown max = values.get(values.size() - 1);
 				
-				//long time = values[i].time.longValue();
-				//int downs = values[i].down.intValue();
+				minTime = min.time;
+				maxTime = max.time;
+				minDown = 0;
+				maxDown = max.down - min.down;
 				
-				double x = Utils.map(minTime, minTime, maxTime, 0D, w);
-				double y = Utils.map(minDown, minDown, maxDown, h, 0D);
+				for(int i = 0; i < values.size(); i++)
+				{
+					Graph.TimedDown t = values.get(i);
+					Graph.TimedDown t0 = (i > 0 ? values.get(i - 1) : new Graph.TimedDown(minTime, minDown));
+					
+					double x = Utils.map(t.time, minTime, maxTime, 0D, w);
+					double y = Utils.map(t.down - t0.down, minDown, maxDown, h, 0D);
+					
+					y = Math.max(2, Math.min(y, h - 2));
+					points.add(new GraphPoint(x, y, t.time, t.down));
+				}
 				
-				y = Math.max(2, Math.min(y, h - 2));
-				points.add(new GraphPoint(x, y, time, 0));
+				minDown = min.down;
+				maxDown = max.down;
 			}
 			
 		}
 		else
 		{
-			for(int i = 0; i < values.size(); i++)
+			if(values.size() >= 2)
 			{
-				Graph.TimedDown t = values.get(i);
+				Graph.TimedDown min = values.get(0);
+				Graph.TimedDown max = values.get(values.size() - 1);
 				
-				double x = Utils.map(t.time, minTime, maxTime, 0D, w);
-				double y = Utils.map(t.down, minDown, maxDown, h, 0D);
+				minTime = min.time;
+				maxTime = max.time;
+				minDown = min.down;
+				maxDown = max.down;
 				
-				y = Math.max(2, Math.min(y, h - 2));
-				points.add(new GraphPoint(x, y, t.time, t.down));
+				for(int i = 0; i < values.size(); i++)
+				{
+					Graph.TimedDown t = values.get(i);
+					
+					double x = Utils.map(t.time, minTime, maxTime, 0D, w);
+					double y = Utils.map(t.down, minDown, maxDown, h, 0D);
+					
+					y = Math.max(2, Math.min(y, h - 2));
+					points.add(new GraphPoint(x, y, t.time, t.down));
+				}
 			}
-			
 		}
 		
 		boolean isOver = false;

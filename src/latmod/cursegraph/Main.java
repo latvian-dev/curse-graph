@@ -167,19 +167,23 @@ public class Main
 	{
 		@Expose public Integer refreshMinutes;
 		@Expose public Integer graphLimit;
+		@Expose public Boolean graphRelative;
 		@Expose public Boolean startMinimized;
 		@Expose public String dataFileLocation;
 		@Expose public String projectsFileLocation;
 		@Expose public Boolean scrollTabs;
+		@Expose public Boolean closeToTray;
 		
 		public void setDefaults()
 		{
 			if(refreshMinutes == null) refreshMinutes = 30;
 			if(graphLimit == null) graphLimit = -1;
+			if(graphRelative == null) graphRelative = false;
 			if(startMinimized == null) startMinimized = true;
 			if(dataFileLocation == null) dataFileLocation = new File(folder, "data.json").getAbsolutePath();
 			if(projectsFileLocation == null) projectsFileLocation = new File(folder, "projects.json").getAbsolutePath();
 			if(scrollTabs == null) scrollTabs = true;
+			if(closeToTray == null) closeToTray = true;
 		}
 		
 		public void save()

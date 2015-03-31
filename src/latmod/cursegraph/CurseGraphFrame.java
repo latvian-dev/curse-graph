@@ -16,7 +16,7 @@ public class CurseGraphFrame extends JFrame
 	public CurseGraphFrame()
 	{
 		setTitle("CurseGraph v" + Main.version);
-		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+		setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		add(pane);
 		this.setSize(700, 500);
 		pane.setSize(700, 500);
@@ -27,6 +27,12 @@ public class CurseGraphFrame extends JFrame
 		
 		setVisible(!Main.config.startMinimized.booleanValue());
 		setIconImage(Main.imageReady);
+	}
+	
+	public void dispose()
+	{
+		if(Main.config.closeToTray) setVisible(false);
+		else System.exit(0);
 	}
 	
 	public void refresh()
@@ -86,7 +92,7 @@ public class CurseGraphFrame extends JFrame
 		}
 		
 		{
-			JButton b = new JButton("Set graph type");
+			JButton b = new JButton("Set graph limit");
 			b.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
@@ -113,12 +119,27 @@ public class CurseGraphFrame extends JFrame
 				}
 			});
 			
-			//settingsPanel.add(b);
+			settingsPanel.add(b);
+		}
+		
+		{
+			JButton b = new JButton("Graph type: " + (Main.config.graphRelative.booleanValue() ? "Relative" : "Default"));
+			b.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{
+					Main.config.graphRelative = !Main.config.graphRelative.booleanValue();
+					Main.config.save();
+					refresh();
+				}
+			});
+			
+			settingsPanel.add(b);
 		}
 		
 		{
 			final boolean scrollTabs = Main.config.scrollTabs.booleanValue();
-			final JButton b = new JButton("Scrolling Tabs " + (scrollTabs ? "[ON]" : "[OFF]"));
+			final JButton b = new JButton("Scrolling Tabs: " + (scrollTabs ? "ON" : "OFF"));
 			b.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
@@ -261,7 +282,7 @@ public class CurseGraphFrame extends JFrame
 			settingsPanel.add(b);
 		}
 		
-		addPanel("Settings", settingsPanel);
+		pane.addTab("Settings", null, settingsPanel, null);
 		
 		Curse.Project[] projectsList = Projects.list.toArray(new Curse.Project[0]);
 		Arrays.sort(projectsList);
@@ -392,7 +413,7 @@ public class CurseGraphFrame extends JFrame
 			panel.setComponentPopupMenu(menu);
 			
 			panel.add(new JCurseGraph(panel, p));
-			addPanel(p.title, panel);
+			pane.addTab(p.title, null, panel, null);
 			componentsAdded.add(p.title);
 		}
 		
@@ -418,7 +439,4 @@ public class CurseGraphFrame extends JFrame
 	
 	//private static long getH(int i)
 	//{ return 1000L * 60L * 60L * i; }
-	
-	public void addPanel(String title, JComponent c)
-	{ pane.addTab(title, null, c, title); }
 }
