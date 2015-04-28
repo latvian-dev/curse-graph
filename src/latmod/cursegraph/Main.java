@@ -3,7 +3,7 @@ package latmod.cursegraph;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
+import java.io.*;
 import java.net.*;
 
 import javax.imageio.ImageIO;
@@ -13,7 +13,7 @@ import com.google.gson.annotations.Expose;
 
 public class Main
 {
-	public static final int version = 6;
+	public static final int version = 7;
 	public static int latestVersion = -1;
 	
 	public static TrayIcon trayIcon = null;
@@ -35,6 +35,13 @@ public class Main
 		
 		System.out.println("Loading CurseGraph, Version: " + version + " @ " + Graph.getTimeString(System.currentTimeMillis()));
 		
+		{
+			File versionFile = new File(folder, "CurseGraph.version");
+			versionFile.createNewFile();
+			FileOutputStream fos = new FileOutputStream(versionFile);
+			fos.write(("" + version).getBytes()); fos.close();
+		}
+		
 		configFile = new File(folder, "config.json");
 		config = Utils.fromJsonFile(configFile, Config.class);
 		if(!configFile.exists()) configFile.createNewFile();
@@ -43,7 +50,7 @@ public class Main
 		config.setDefaults();
 		config.save();
 		
-		projectsFile = new File(config.projectsFileLocation);
+		projectsFile = new File(config.projectsFilePath);
 		
 		try
 		{
@@ -70,13 +77,46 @@ public class Main
 				System.exit(1); return;
 			}
 			
-			SystemTray.getSystemTray().add(trayIcon);
-			
 			trayIcon.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
 				{ CurseGraphFrame.inst.setVisible(!CurseGraphFrame.inst.isVisible()); }
 			});
+			
+			PopupMenu menu = new PopupMenu();
+			
+			{
+				MenuItem m1 = new MenuItem("Curse Graph v" + version + ((latestVersion > version) ? " (Update available)" : ""));
+				
+				m1.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e)
+					{ CurseGraphFrame.inst.setVisible(true); }
+				});
+				
+				menu.add(m1);
+			}
+			
+			menu.addSeparator();
+			
+			{
+				MenuItem m1 = new MenuItem("Exit");
+				
+				m1.addActionListener(new ActionListener()
+				{
+					public void actionPerformed(ActionEvent e)
+					{
+						SystemTray.getSystemTray().remove(trayIcon);
+						System.exit(0);
+					}
+				});
+				
+				menu.add(m1);
+			}
+			
+			trayIcon.setPopupMenu(menu);
+			
+			SystemTray.getSystemTray().add(trayIcon);
 		}
 		
 		refresh();
@@ -104,38 +144,6 @@ public class Main
 		if(!firstRefresh) CurseGraphFrame.inst.setIconImage(imageBusy);
 		Projects.load();
 		
-		PopupMenu menu = new PopupMenu();
-		
-		{
-			MenuItem m1 = new MenuItem("Curse Graph v" + version + ((latestVersion > version) ? " (Update available)" : ""));
-			
-			m1.addActionListener(new ActionListener()
-			{
-				public void actionPerformed(ActionEvent e)
-				{ openURL("https://github.com/LatvianModder/CurseGraph/"); }
-			});
-			
-			menu.add(m1);
-		}
-		
-		menu.addSeparator();
-		
-		{
-			MenuItem m1 = new MenuItem("Exit");
-			
-			m1.addActionListener(new ActionListener()
-			{
-				public void actionPerformed(ActionEvent e)
-				{
-					SystemTray.getSystemTray().remove(trayIcon);
-					System.exit(0);
-				}
-			});
-			
-			menu.add(m1);
-		}
-		
-		trayIcon.setPopupMenu(menu);
 		trayIcon.setImage(imageReady);
 		if(!firstRefresh) CurseGraphFrame.inst.setIconImage(imageReady);
 		CurseGraphFrame.inst.refresh();
@@ -169,10 +177,11 @@ public class Main
 		@Expose public Integer graphLimit;
 		@Expose public Boolean graphRelative;
 		@Expose public Boolean startMinimized;
-		@Expose public String dataFileLocation;
-		@Expose public String projectsFileLocation;
+		@Expose public String dataFolderPath;
+		@Expose public String projectsFilePath;
 		@Expose public Boolean scrollTabs;
 		@Expose public Boolean closeToTray;
+		@Expose public Integer colorScheme;
 		
 		public void setDefaults()
 		{
@@ -180,10 +189,11 @@ public class Main
 			if(graphLimit == null) graphLimit = -1;
 			if(graphRelative == null) graphRelative = false;
 			if(startMinimized == null) startMinimized = true;
-			if(dataFileLocation == null) dataFileLocation = new File(folder, "data.json").getAbsolutePath();
-			if(projectsFileLocation == null) projectsFileLocation = new File(folder, "projects.json").getAbsolutePath();
+			if(dataFolderPath == null) dataFolderPath = new File(folder, "data/").getAbsolutePath().replace("\\", "/");
+			if(projectsFilePath == null) projectsFilePath = new File(folder, "projects.txt").getAbsolutePath().replace("\\", "/");
 			if(scrollTabs == null) scrollTabs = true;
 			if(closeToTray == null) closeToTray = true;
+			if(colorScheme == null) colorScheme = ColorScheme.DARK_ORANGE.ordinal();
 		}
 		
 		public void save()

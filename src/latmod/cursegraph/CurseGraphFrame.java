@@ -51,6 +51,18 @@ public class CurseGraphFrame extends JFrame
 		layout.setVgap(5);
 		settingsPanel.setLayout(layout);
 		
+		if(Main.version < Main.latestVersion)
+		{
+			JButton b = new JButton("Update available!");
+			b.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{ Main.openURL("https://github.com/LatvianModder/CurseGraph/"); }
+			});
+			
+			settingsPanel.add(b);
+		}
+		
 		{
 			JButton b = new JButton("Add");
 			b.addActionListener(new ActionListener()
@@ -92,16 +104,21 @@ public class CurseGraphFrame extends JFrame
 		}
 		
 		{
-			JButton b = new JButton("Set graph limit");
+			final int times[] = { -1, 1, 24, 24 * 7, 24 * 30 };
+			final String types[] = { "None", "Hour", "Day", "Week", "Month" };
+			
+			String bname = "Custom";
+			if(Main.config.graphLimit.intValue() == -1) bname = "None";
+			else for(int i = 0; i < times.length; i++)
+			{ if(times[i] == Main.config.graphLimit.intValue()) bname = types[i]; }
+			
+			JButton b = new JButton("Graph limit: " + bname);
 			b.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
 				{
 					try
 					{
-						int times[] = { -1, 1, 24, 24 * 7, 24 * 30 };
-						String types[] = { "None", "Hour", "Day", "Week", "Month" };
-						
 						String type0 = (String)JOptionPane.showInputDialog(null, "Select graph type:", "Graph type", JOptionPane.PLAIN_MESSAGE, null, types, types[0]);
 						if(type0 == null || type0.isEmpty()) return;
 						
@@ -110,7 +127,9 @@ public class CurseGraphFrame extends JFrame
 							if(type0.equals(types[i]))
 							{
 								Main.config.graphLimit = times[i];
+								Main.config.save();
 								Main.refresh();
+								return;
 							}
 						}
 					}

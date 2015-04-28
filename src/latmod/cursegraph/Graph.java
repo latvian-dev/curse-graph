@@ -1,22 +1,33 @@
 package latmod.cursegraph;
 
-import java.awt.Color;
-import java.io.File;
+import java.io.*;
 import java.util.*;
-
-import com.google.gson.annotations.Expose;
 
 public class Graph
 {
-	public static final Color C_BG = new Color(0, 0, 0);
-	public static final Color C_GRID = new Color(30, 30, 30);
-	public static final Color C_NODE = new Color(255, 157, 0);
-	public static final Color C_TEXT = new Color(255, 201, 0);
+	public static ColorScheme colors = ColorScheme.DARK_ORANGE;
 	
 	public static class GraphData
 	{
-		@Expose public Map<String, Integer> lastDownloads;
-		@Expose public Map<String, Map<Long, Integer>> projects;
+		public final String modID;
+		public final ArrayList<TimedDown> downloads;
+		public int lastDownloads;
+		
+		public GraphData(String s)
+		{
+			modID = s;
+			downloads = new ArrayList<TimedDown>();
+			lastDownloads = 0;
+		}
+		
+		public String toString()
+		{ return modID; }
+		
+		public boolean equals(Object o)
+		{
+			if(o == this) return true;
+			return o.toString().equals(toString());
+		}
 	}
 	
 	public static class Checker implements Runnable
@@ -77,34 +88,68 @@ public class Graph
 		{ time = t; down = v; }
 		
 		public int compareTo(TimedDown o)
-		{ return new Long(time).compareTo(o.time); }
+		{ return (time < o.time ? -1 : (time == o.time ? 0 : 1)); }
 	}
 	
-	public static File dataFile;
-	public static GraphData graphData;
-	public static Checker checker;
+	public static final ArrayList<GraphData> allData = new ArrayList<GraphData>();
+	public static final Checker checker = new Checker();
 	
 	public static void init() throws Exception
 	{
-		dataFile = new File(Main.config.dataFileLocation);
-		graphData = Utils.fromJsonFile(dataFile, GraphData.class);
-		
-		if(!dataFile.exists()) dataFile.createNewFile();
-		
-		if(graphData == null)
+		if(!OldGraphDataLoader.init())
 		{
-			graphData = new GraphData();
-			checkNull();
+			for(Curse.Project p : Projects.list)
+			{
+				GraphData data = getData(p.projectID);
+				data.downloads.clear();
+				
+				File f = new File(Main.config.dataFolderPath, p.projectID + ".txt");
+				
+				if(f.exists())
+				{
+					FileInputStream fis = new FileInputStream(f);
+					String txt = Utils.toString(fis);
+					fis.close();
+					
+					String[] s = txt.split("\n");
+					if(s == null || s.length == 0)
+						s = new String[] { txt };
+					
+					for(String s1 : s)
+					{
+						String[] s2 = s1.split(":", 2);
+						if(s2 != null && s2.length == 2)
+						{
+							long t = Long.parseLong(s2[0]);
+							int d = Integer.parseInt(s2[1]);
+							
+							Graph.TimedDown td = new Graph.TimedDown(t, d);
+							data.downloads.add(td);
+						}
+					}
+				}
+			}
 		}
 		
-		checker = new Checker();
+		saveGraph();
 		checker.start();
 	}
 	
-	public static void checkNull()
+	public static void saveGraph() throws Exception
 	{
-		if(graphData.projects == null) graphData.projects = new HashMap<String, Map<Long, Integer>>();
-		if(graphData.lastDownloads == null) graphData.lastDownloads = new HashMap<String, Integer>();
+		for(Curse.Project p : Projects.list)
+		{
+			GraphData data = getData(p.projectID);
+			Graph.TimedDown[] downs = data.downloads.toArray(new Graph.TimedDown[0]);
+			
+			if(downs.length > 0)
+			{
+				FileOutputStream fos = new FileOutputStream(Utils.newFile(new File(Main.config.dataFolderPath, p.projectID + ".txt")));
+				Arrays.sort(downs);
+				for(Graph.TimedDown t : downs) fos.write((t.time + ":" + t.down + "\n").getBytes());
+				fos.flush(); fos.close();
+			}
+		}
 	}
 	
 	@SuppressWarnings("deprecation")
@@ -129,33 +174,32 @@ public class Graph
 	private static String formNum(int i)
 	{ return (i < 10) ? ("0" + i) : ("" + i); }
 	
-	public static ArrayList<TimedDown> getAllKeys(String mod)
+	public static GraphData getData(String mod)
+	{
+		int idx = allData.indexOf(mod);
+		if(idx < 0)
+		{
+			GraphData data = new GraphData(mod);
+			data.lastDownloads = -1;
+			allData.add(data);
+			return data;
+		}
+		
+		return allData.get(idx);
+	}
+	
+	public static ArrayList<TimedDown> getDownloads(String mod)
 	{
 		ArrayList<TimedDown> alist = new ArrayList<TimedDown>();
-		
-		Map<Long, Integer> map = graphData.projects.get(mod);
-		
-		if(map == null || map.isEmpty()) return alist;
-		
-		TimedDown[] list = new TimedDown[map.size()];
-		
-		Iterator<Long> keys = map.keySet().iterator();
-		Iterator<Integer> values = map.values().iterator();
-		
-		int i = -1; while(keys.hasNext())
-			list[++i] = new TimedDown(keys.next(), values.next());
-		
-		Arrays.sort(list);
-		
-		for(i = 0; i < list.length; i++)
-			alist.add(list[i]);
-		
+		GraphData data = getData(mod);
+		if(data == null || data.downloads.isEmpty()) return alist;
+		alist.addAll(data.downloads);
 		return alist;
 	}
 	
-	public static ArrayList<TimedDown> getKeys(String mod, long min, long max)
+	public static ArrayList<TimedDown> getDownloads(String mod, long min, long max)
 	{
-		ArrayList<TimedDown> al = getAllKeys(mod);
+		ArrayList<TimedDown> al = getDownloads(mod);
 		
 		for(int i = 0; i < al.size(); i++)
 		{
@@ -169,77 +213,59 @@ public class Graph
 	
 	public static void logData() throws Exception
 	{
-		if(graphData == null) graphData = new GraphData();
-		
 		long ms = System.currentTimeMillis();
-		
-		checkNull();
 		
 		if(Projects.hasProjects()) for(Curse.Project p : Projects.list)
 		{
-			Map<Long, Integer> map = graphData.projects.get(p.projectID);
+			GraphData data = getData(p.projectID);
 			
-			if(map == null)
-			{
-				map = new HashMap<Long, Integer>();
-				graphData.projects.put(p.projectID, map);
-			}
-			
-			Integer lastDowns = graphData.lastDownloads.get(p.projectID);
 			int d = p.getTotalDownloads();
 			
-			if(lastDowns == null || lastDowns.intValue() < d)
+			if(data.lastDownloads <= -1 || d > data.lastDownloads)
 			{
-				map.put(ms, d);
-				graphData.lastDownloads.put(p.projectID, d);
+				data.downloads.add(new TimedDown(ms, d));
+				data.lastDownloads = d;
 			}
 		}
 		
 		saveGraph();
 	}
 	
-	public static void saveGraph() throws Exception
-	{ checkNull(); Utils.toJsonFile(dataFile, graphData); }
-	
-	public static void clearData(long l)
-	{
-		long ms = System.currentTimeMillis();
-		
-		try
-		{
-			int i = 0;
-			
-			if(graphData.lastDownloads != null) graphData.lastDownloads.clear();
-			
-			if(graphData.projects != null) for(String s : graphData.projects.keySet())
+	/* if(i > 0)
 			{
-				if(graphData.projects != null)
-				{
-					Map<Long, Integer> m = graphData.projects.get(s);
-					
-					List<Long> keys = new ArrayList<Long>();
-					keys.addAll(m.keySet());
-					
-					for(Long l1 : keys)
-					{
-						if((ms - l1.longValue()) >= l)
-						{
-							m.remove(l1);
-							i++;
-						}
-					}
-				}
-			}
-			
-			if(i > 0)
-			{
+				Main.info("Removed " + i + " values!", false);
 				logData();
 				Main.refresh();
 			}
-			
-			Main.info("Removed " + i + " values!", false);
+	 */
+	
+	public static int clearData(long l)
+	{
+		int i = 0;
+		for(Curse.Project p : Projects.list)
+			i += clearData(p.projectID, l);
+		return i;
+	}
+	
+	public static int clearData(String s, long l)
+	{
+		long ms = System.currentTimeMillis();
+		int ret = 0;
+		
+		GraphData data = getData(s);
+		
+		data.lastDownloads = -1;
+		
+		for(int i = 0; i < data.downloads.size(); i++)
+		{
+			TimedDown t = data.downloads.get(i);
+			if((ms - t.time) >= l)
+			{
+				data.downloads.remove(i);
+				ret++;
+			}
 		}
-		catch(Exception e)
-		{ e.printStackTrace(); }
+		
+		return ret;
 	}
 }

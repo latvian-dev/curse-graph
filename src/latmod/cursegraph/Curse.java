@@ -11,7 +11,7 @@ public class Curse
 		MOD("mc-mods", "Mod"),
 		TEX_PACK("texture-packs", "Texture Pack"),
 		WORLD("worlds", "World"),
-		MODPACK("modpacks", "[WIP] Modpack"),
+		MODPACK("modpacks", "Modpack"),
 		
 		; public static final Type[] VALUES = values();
 		public final String ID;
