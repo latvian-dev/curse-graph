@@ -101,4 +101,11 @@ public class Utils
 		
 		return false;
 	}
+	
+	public static boolean containsChar(String s, char c)
+	{
+		for(int i = 0; i < s.length(); i++)
+			if(s.charAt(i) == c) return true;
+		return false;
+	}
 }

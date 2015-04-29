@@ -1,6 +1,6 @@
 package latmod.cursegraph;
 
-import java.io.File;
+import java.io.*;
 import java.net.URL;
 import java.util.*;
 
@@ -46,52 +46,37 @@ public class Projects
 	{
 		list.clear();
 		
-		List<String> l = Utils.fromJsonFile(Main.projectsFile, Utils.getListType(String.class));
-		
-		if(l == null)
-		{
-			l = new ArrayList<String>();
-			l.add(Curse.Type.MOD + "@224778-latcoremc");
-		}
-		
 		boolean addedAll = true;
 		
-		for(String s : l)
-		{
-			String[] s1 = s.split("@", 2);
-			if(s1 != null && s1.length == 2)
-			{ if(!add(Curse.Type.get(s1[0]), s1[1], true)) addedAll = false; }
-		}
+		File f = new File(Main.dataFolder, "projects.txt");
 		
-		if(!loadOld()) addedAll = false;
+		try
+		{
+			BufferedReader br = new BufferedReader(new FileReader(Utils.newFile(f)));
+			String s = null;
+			
+			while((s = br.readLine()) != null)
+			{
+				String[] s1 = s.split(": ", 2);
+				
+				if(s1 != null && s1.length == 2)
+				{
+					Curse.Type t = Curse.Type.getFromChar(s1[0].charAt(0));
+					
+					if(t == null) { addedAll = false; continue; }
+					else add(t, s1[1], true);
+				}
+			}
+			
+			br.close();
+		}
+		catch(Exception e) { }
 		
 		if(!addedAll) Main.error("Some projects failed to load!", false);
-		
 		return hasProjects();
 	}
 	
-	private static boolean loadOld()
-	{
-		File f = new File(Main.folder, "mods.json");
-		
-		if(f.exists())
-		{
-			List<String> l = Utils.fromJsonFile(f, Utils.getListType(String.class));
-			
-			boolean addedAll = true;
-			
-			if(l != null) for(int i = 0; i < l.size(); i++)
-				if(!add(Curse.Type.MOD, l.get(i), true))
-					addedAll = false;
-			
-			f.delete();
-			return addedAll;
-		}
-		
-		return true;
-	}
-	
-	public static boolean add(Curse.Type t, String id, boolean silent)
+	public static Curse.Project add(Curse.Type t, String id, boolean silent)
 	{
 		try
 		{
@@ -107,7 +92,7 @@ public class Projects
 				if(list.contains(m))
 				{
 					Main.error("Duplicate ProjectID '" + id + "'!", silent);
-					return false;
+					return list.get(list.indexOf(m));
 				}
 				
 				list.add(m);
@@ -120,28 +105,31 @@ public class Projects
 				
 				Main.info("Added '" + m.title + "'!", silent);
 				
-				return true;
+				return m;
 			}
 		}
 		catch(Exception ex)
 		{ ex.printStackTrace(); }
 		
-		Main.error("Project with ID '" + id + "' failed to load!", silent);
-		return false;
+		Main.error(t.name + " with ID '" + id + "' failed to load!", silent);
+		return null;
 	}
 	
 	public static void save()
 	{
-		ArrayList<String> l = new ArrayList<String>();
+		String[] l = new String[list.size()];
+		for(int i = 0; i < l.length; i++)
+		{
+			Curse.Project p = Projects.list.get(i);
+			l[i] = (p.getType().charID + ": " + p.projectID + "\n");
+		}
 		
-		for(Curse.Project p : list)
-			l.add(p.getType() + "@" + p.projectID);
+		Arrays.sort(l);
 		
 		try
 		{
-			if(!Main.projectsFile.exists())
-				Main.projectsFile.createNewFile();
-			Utils.toJsonFile(Main.projectsFile, l);
+			BufferedWriter bw = new BufferedWriter(new FileWriter(Utils.newFile(new File(Main.dataFolder, "projects.txt"))));
+			for(String s : l) bw.append(s); bw.flush(); bw.close();
 		}
 		catch(Exception e)
 		{ e.printStackTrace(); }

@@ -20,7 +20,7 @@ public class Main
 	public static BufferedImage imageReady, imageBusy;
 	
 	public static final File folder = getFolder();
-	public static File projectsFile, configFile;
+	public static File dataFolder, configFile;
 	public static Config config;
 	
 	private static boolean firstRefresh;
@@ -50,7 +50,7 @@ public class Main
 		config.setDefaults();
 		config.save();
 		
-		projectsFile = new File(config.projectsFilePath);
+		dataFolder = new File(config.dataFolderPath);
 		
 		try
 		{
@@ -119,6 +119,7 @@ public class Main
 			SystemTray.getSystemTray().add(trayIcon);
 		}
 		
+		OldDataLoader.init();
 		refresh();
 		Projects.save();
 		Graph.init();
@@ -178,10 +179,12 @@ public class Main
 		@Expose public Boolean graphRelative;
 		@Expose public Boolean startMinimized;
 		@Expose public String dataFolderPath;
-		@Expose public String projectsFilePath;
 		@Expose public Boolean scrollTabs;
 		@Expose public Boolean closeToTray;
-		@Expose public Integer colorScheme;
+		@Expose public String colorBackground;
+		@Expose public String colorGrid;
+		@Expose public String colorLines;
+		@Expose public String colorText;
 		
 		public void setDefaults()
 		{
@@ -190,10 +193,12 @@ public class Main
 			if(graphRelative == null) graphRelative = false;
 			if(startMinimized == null) startMinimized = true;
 			if(dataFolderPath == null) dataFolderPath = new File(folder, "data/").getAbsolutePath().replace("\\", "/");
-			if(projectsFilePath == null) projectsFilePath = new File(folder, "projects.txt").getAbsolutePath().replace("\\", "/");
 			if(scrollTabs == null) scrollTabs = true;
 			if(closeToTray == null) closeToTray = true;
-			if(colorScheme == null) colorScheme = ColorScheme.DARK_ORANGE.ordinal();
+			if(colorBackground == null) colorBackground = "#000000";
+			if(colorGrid == null) colorGrid = "#1E1E1E";
+			if(colorLines == null) colorLines = "#FF9D00";
+			if(colorText == null) colorText = "#FFC900";
 		}
 		
 		public void save()

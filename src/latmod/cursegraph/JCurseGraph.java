@@ -12,6 +12,7 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 {
 	private static final long serialVersionUID = 1L;
 	private static final int fontSize = 12;
+	public static Color colorBackground, colorGrid, colorLines, colorText;
 	
 	private static class GraphPoint
 	{
@@ -22,6 +23,24 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 		
 		public GraphPoint(double px, double py, long t, int d)
 		{ x = (int)px; y = (int)py; time = t; downs = d; }
+	}
+	
+	public static class Colors
+	{
+		public static Color background, grid, lines, text;
+		
+		public static void update()
+		{
+			try
+			{
+				background = new Color(Integer.decode(Main.config.colorBackground));
+				grid = new Color(Integer.decode(Main.config.colorGrid));
+				lines = new Color(Integer.decode(Main.config.colorText));
+				text = new Color(Integer.decode(Main.config.colorText));
+			}
+			catch(Exception e)
+			{ e.printStackTrace(); }
+		}
 	}
 	
 	public final JPanel parent;
@@ -42,6 +61,8 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 	
 	private static Icon getIcon(Curse.Project p, int w, int h)
 	{
+		Colors.update();
+		
 		BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
 		int pixels[] = new int[w * h];
 		
@@ -50,9 +71,9 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 			int x = i % w;
 			int y = i / w;
 			
-			pixels[i] = Graph.colors.background.getRGB();
+			pixels[i] = Colors.background.getRGB();
 			
-			if((y % 24 == 0) || (x % 24 == 0)) pixels[i] = Graph.colors.grid.getRGB();
+			if((y % 24 == 0) || (x % 24 == 0)) pixels[i] = Colors.grid.getRGB();
 		}
 		
 		img.setRGB(0, 0, w, h, pixels, 0, w);
@@ -73,7 +94,7 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 		}
 		
 		int w = getWidth();
-		int h = getHeight() - 8;
+		int h = getHeight();
 		
 		super.paint(g);
 		
@@ -133,6 +154,7 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 					double y = Utils.map(down, minDown, maxDown, h, 0D);
 					
 					y = Math.max(2, Math.min(y, h - 2));
+					if(i == 0) y = h - 2;
 					points.add(new GraphPoint(x, y, t.time, t.down));
 				}
 			}
@@ -163,7 +185,7 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 			}
 		}
 		
-		boolean isOver = false;
+		int pointOver = -1;
 		
 		for(int i = points.size() - 1; i >= 0; i--)
 		{
@@ -172,7 +194,7 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 			
 			if(i > 0) pp = points.get(i - 1);
 			
-			g.setColor(Graph.colors.nodes);
+			g.setColor(Colors.lines);
 			g.drawLine(pp.x, pp.y, p.x, p.y);
 			//g.drawLine(p.x, h - 4, p.x, h);
 			
@@ -181,16 +203,16 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 			else
 				g.drawOval(p.x - 1, p.y - 1, 2, 2);
 			
-			if(!isOver && p.time > 0L && Utils.distSq(mouseX, mouseY, p.x, p.y) <= (6 * 6))
+			if(pointOver == -1 && p.time > 0L && Utils.distSq(mouseX, mouseY, p.x, p.y) <= (6 * 6))
 			{
-				isOver = true;
-				g.setColor(Graph.colors.text);
+				pointOver = i;
+				g.setColor(Colors.text);
 				
 				if(i > 0 && isRelative)
 					g.drawString(Graph.getTimeString(p.time) + " :: " + p.downs + " :: +" + (p.downs - pp.downs), 4, 16);
 				else
 					g.drawString(Graph.getTimeString(p.time) + " :: " + p.downs, 4, 16);
-				g.setColor(Graph.colors.nodes);
+				g.setColor(Colors.lines);
 				
 				if(!isRelative)
 					g.drawOval(p.x - 1, p.y - 1, 2, 2);
@@ -198,17 +220,26 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 			}
 		}
 		
-		if(!isOver)
+		g.setColor(Colors.text);
+		
+		if(pointOver == -1)
 		{
-			g.setColor(Graph.colors.text);
 			drawString("" + maxDown, 4, 4, g);
-			drawString("" + ((maxDown + minDown) / 2), 4, h / 2 + fontSize / 2 - 6, g);
-			drawString("" + minDown, 4, h - fontSize + 6, g);
+			drawString("" + ((maxDown + minDown) / 2), 4, h / 2 - fontSize / 2, g);
+			drawString("" + minDown, 4, h - fontSize, g);
 			
 			if(!isRelative)
 			{
 				String ns = points.size() + " Nodes";
-				drawString(ns, w - (g.getFontMetrics().stringWidth(ns) + 3), h - fontSize + 6, g);
+				drawString(ns, w - (g.getFontMetrics().stringWidth(ns) + 3), h - fontSize, g);
+			}
+		}
+		else
+		{
+			if(!isRelative)
+			{
+				String ns = "Node #" + (pointOver + 1);
+				drawString(ns, w - (g.getFontMetrics().stringWidth(ns) + 3), h - fontSize, g);
 			}
 		}
 		

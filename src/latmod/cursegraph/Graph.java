@@ -5,28 +5,35 @@ import java.util.*;
 
 public class Graph
 {
-	public static ColorScheme colors = ColorScheme.DARK_ORANGE;
-	
 	public static class GraphData
 	{
-		public final String modID;
+		public final String projectID;
 		public final ArrayList<TimedDown> downloads;
-		public int lastDownloads;
 		
 		public GraphData(String s)
 		{
-			modID = s;
+			projectID = s;
 			downloads = new ArrayList<TimedDown>();
-			lastDownloads = 0;
 		}
 		
 		public String toString()
-		{ return modID; }
+		{ return projectID; }
 		
 		public boolean equals(Object o)
 		{
 			if(o == this) return true;
 			return o.toString().equals(toString());
+		}
+		
+		public void refresh()
+		{ allDataMap.put(projectID, this); }
+
+		public int lastDownloads()
+		{
+			int d = -1;
+			for(TimedDown td : downloads)
+				if(td.down > d) d = td.down;
+			return d;
 		}
 	}
 	
@@ -50,11 +57,12 @@ public class Graph
 		@SuppressWarnings("deprecation")
 		public void stop()
 		{
-			if(thread != null)
+			if(thread != null) try
 			{
 				thread.stop();
-				thread = null;
+ 				thread = null;
 			}
+			catch(Exception e) {}
 		}
 		
 		public void run()
@@ -91,43 +99,38 @@ public class Graph
 		{ return (time < o.time ? -1 : (time == o.time ? 0 : 1)); }
 	}
 	
-	public static final ArrayList<GraphData> allData = new ArrayList<GraphData>();
+	public static final HashMap<String, GraphData> allDataMap = new HashMap<String, GraphData>();
 	public static final Checker checker = new Checker();
 	
 	public static void init() throws Exception
 	{
-		if(!OldGraphDataLoader.init())
+		for(Curse.Project p : Projects.list)
 		{
-			for(Curse.Project p : Projects.list)
+			GraphData data = getData(p.projectID);
+			data.downloads.clear();
+			
+			File f = new File(Main.config.dataFolderPath, p.projectID + ".txt");
+			
+			if(f.exists())
 			{
-				GraphData data = getData(p.projectID);
-				data.downloads.clear();
+				BufferedReader br = new BufferedReader(new FileReader(f));
+				String s = null;
 				
-				File f = new File(Main.config.dataFolderPath, p.projectID + ".txt");
-				
-				if(f.exists())
+				while((s = br.readLine()) != null)
 				{
-					FileInputStream fis = new FileInputStream(f);
-					String txt = Utils.toString(fis);
-					fis.close();
+					String[] s2 = s.split(": ", 2);
 					
-					String[] s = txt.split("\n");
-					if(s == null || s.length == 0)
-						s = new String[] { txt };
-					
-					for(String s1 : s)
+					if(s2 != null && s2.length == 2)
 					{
-						String[] s2 = s1.split(":", 2);
-						if(s2 != null && s2.length == 2)
-						{
-							long t = Long.parseLong(s2[0]);
-							int d = Integer.parseInt(s2[1]);
-							
-							Graph.TimedDown td = new Graph.TimedDown(t, d);
-							data.downloads.add(td);
-						}
+						long t = Long.parseLong(s2[0]);
+						int d = Integer.parseInt(s2[1]);
+						
+						Graph.TimedDown td = new Graph.TimedDown(t, d);
+						data.downloads.add(td);
 					}
 				}
+				
+				br.close();
 			}
 		}
 		
@@ -144,10 +147,8 @@ public class Graph
 			
 			if(downs.length > 0)
 			{
-				FileOutputStream fos = new FileOutputStream(Utils.newFile(new File(Main.config.dataFolderPath, p.projectID + ".txt")));
-				Arrays.sort(downs);
-				for(Graph.TimedDown t : downs) fos.write((t.time + ":" + t.down + "\n").getBytes());
-				fos.flush(); fos.close();
+				BufferedWriter bw = new BufferedWriter(new FileWriter(Utils.newFile(new File(Main.config.dataFolderPath, p.projectID + ".txt"))));
+				Arrays.sort(downs); for(Graph.TimedDown t : downs) bw.append(t.time + ": " + t.down + "\n"); bw.flush(); bw.close();
 			}
 		}
 	}
@@ -174,32 +175,25 @@ public class Graph
 	private static String formNum(int i)
 	{ return (i < 10) ? ("0" + i) : ("" + i); }
 	
-	public static GraphData getData(String mod)
+	public static GraphData getData(String s)
 	{
-		int idx = allData.indexOf(mod);
-		if(idx < 0)
-		{
-			GraphData data = new GraphData(mod);
-			data.lastDownloads = -1;
-			allData.add(data);
-			return data;
-		}
-		
-		return allData.get(idx);
+		GraphData d = allDataMap.get(s);
+		if(d == null) { d = new GraphData(s);
+		allDataMap.put(s, d); } return d;
 	}
 	
-	public static ArrayList<TimedDown> getDownloads(String mod)
+	public static ArrayList<TimedDown> getDownloads(String s)
 	{
 		ArrayList<TimedDown> alist = new ArrayList<TimedDown>();
-		GraphData data = getData(mod);
+		GraphData data = getData(s);
 		if(data == null || data.downloads.isEmpty()) return alist;
 		alist.addAll(data.downloads);
 		return alist;
 	}
 	
-	public static ArrayList<TimedDown> getDownloads(String mod, long min, long max)
+	public static ArrayList<TimedDown> getDownloads(String s, long min, long max)
 	{
-		ArrayList<TimedDown> al = getDownloads(mod);
+		ArrayList<TimedDown> al = getDownloads(s);
 		
 		for(int i = 0; i < al.size(); i++)
 		{
@@ -220,24 +214,13 @@ public class Graph
 			GraphData data = getData(p.projectID);
 			
 			int d = p.getTotalDownloads();
+			int ld = data.lastDownloads();
 			
-			if(data.lastDownloads <= -1 || d > data.lastDownloads)
-			{
-				data.downloads.add(new TimedDown(ms, d));
-				data.lastDownloads = d;
-			}
+			if(d > ld) data.downloads.add(new TimedDown(ms, d));
 		}
 		
 		saveGraph();
 	}
-	
-	/* if(i > 0)
-			{
-				Main.info("Removed " + i + " values!", false);
-				logData();
-				Main.refresh();
-			}
-	 */
 	
 	public static int clearData(long l)
 	{
@@ -250,22 +233,20 @@ public class Graph
 	public static int clearData(String s, long l)
 	{
 		long ms = System.currentTimeMillis();
-		int ret = 0;
 		
 		GraphData data = getData(s);
 		
-		data.lastDownloads = -1;
+		ArrayList<TimedDown> newList = new ArrayList<TimedDown>();
 		
 		for(int i = 0; i < data.downloads.size(); i++)
 		{
 			TimedDown t = data.downloads.get(i);
-			if((ms - t.time) >= l)
-			{
-				data.downloads.remove(i);
-				ret++;
-			}
+			if((ms - t.time) < l) newList.add(t);
 		}
 		
-		return ret;
+		int rem = data.downloads.size() - newList.size();
+		data.downloads.clear();
+		data.downloads.addAll(newList);
+		return rem;
 	}
 }

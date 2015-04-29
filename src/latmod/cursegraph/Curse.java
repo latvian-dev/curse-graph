@@ -8,17 +8,18 @@ public class Curse
 {
 	public static enum Type
 	{
-		MOD("mc-mods", "Mod"),
-		TEX_PACK("texture-packs", "Texture Pack"),
-		WORLD("worlds", "World"),
-		MODPACK("modpacks", "Modpack"),
+		MOD("mc-mods", "Mod", 'M'),
+		TEX_PACK("texture-packs", "Texture Pack", 'T'),
+		WORLD("worlds", "World", 'W'),
+		MODPACK("modpacks", "Modpack", 'P'),
 		
 		; public static final Type[] VALUES = values();
 		public final String ID;
 		public final String name;
+		public final char charID;
 		
-		Type(String s, String s1)
-		{ ID = s; name = s1; }
+		Type(String s, String s1, char c)
+		{ ID = s; name = s1; charID = c; }
 		
 		public static String[] getAllNames()
 		{
@@ -30,16 +31,20 @@ public class Curse
 
 		public static Type get(String s)
 		{
-			for(Type t : VALUES)
-				if(s.equals(t.ID)) return t;
-			return null;
+			for(Type t : VALUES) if(s.equals(t.ID))
+				return t; return null;
 		}
 		
 		public static Type getFromName(String s)
 		{
-			for(Type t : VALUES)
-				if(s.equals(t.name)) return t;
-			return null;
+			for(Type t : VALUES) if(s.equals(t.name))
+				return t; return null;
+		}
+		
+		public static Type getFromChar(char c)
+		{
+			for(Type t : VALUES) if(c == t.charID)
+				return t; return null;
 		}
 		
 		public String toString()

@@ -212,6 +212,58 @@ public class CurseGraphFrame extends JFrame
 		
 		/*
 		{
+			JButton b = new JButton("Select colors");
+			b.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{
+					//
+					CurseGraphFrame.inst.refresh();
+					Main.config.save();
+				}
+			});
+			
+			settingsPanel.add(b);
+		}
+		*/
+		
+		{
+			final int times[] = { 1, 24, 24 * 7, 24 * 30 };
+			final String types[] = { "Hour", "Day", "Week", "Month" };
+			
+			JButton b = new JButton("Clear older than...");
+			b.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{
+					try
+					{
+						String type0 = (String)JOptionPane.showInputDialog(null, "Time period:", "Clear older than...", JOptionPane.PLAIN_MESSAGE, null, types, types[0]);
+						if(type0 == null || type0.isEmpty()) return;
+						
+						for(int i = 1; i < types.length; i++)
+						{
+							if(type0.equals(types[i]))
+							{
+								int c = Graph.clearData(times[i] * 3600000);
+								
+								Main.info("Removed " + c + " values!", false);
+								Graph.logData();
+								Main.refresh();
+								return;
+							}
+						}
+					}
+					catch(Exception ex)
+					{ ex.printStackTrace(); }
+				}
+			});
+			
+			settingsPanel.add(b);
+		}
+		
+		/*
+		{
 			PopupMenu m1 = new PopupMenu("Clear older than...");
 			
 			{
