@@ -7,23 +7,22 @@ import java.io.*;
 import java.net.*;
 
 import javax.imageio.ImageIO;
-import javax.swing.JOptionPane;
-
-import com.google.gson.annotations.Expose;
+import javax.swing.*;
 
 public class Main
 {
-	public static final int version = 7;
+	public static final int version = 8;
 	public static int latestVersion = -1;
 	
 	public static TrayIcon trayIcon = null;
-	public static BufferedImage imageReady, imageBusy;
+	public static BufferedImage imageReady, imageBusy, imageSettings;
+	public static ImageIcon iconSettings;
 	
 	public static final File folder = getFolder();
 	public static File dataFolder, configFile;
 	public static Config config;
 	
-	private static boolean firstRefresh;
+	private static boolean firstRefresh = true;
 	
 	public static void main(String[] args) throws Exception
 	{
@@ -62,8 +61,8 @@ public class Main
 		
 		imageReady = loadImage("trayIcon.png");
 		imageBusy = loadImage("trayIconBusy.png");
-		
-		firstRefresh = true;
+		imageSettings = loadImage("settings.png");
+		iconSettings = new ImageIcon(imageSettings.getScaledInstance(24, 24, Image.SCALE_SMOOTH));
 		
 		trayIcon = new TrayIcon(imageReady);
 		trayIcon.setImageAutoSize(true);
@@ -139,6 +138,9 @@ public class Main
 	public static BufferedImage loadImage(String s) throws Exception
 	{ return ImageIO.read(Main.class.getResource("/latmod/cursegraph/" + s)); }
 	
+	public static BufferedImage loadImageURL(String s) throws Exception
+	{ return ImageIO.read(new URL(s)); }
+	
 	public static void refresh()
 	{
 		trayIcon.setImage(imageBusy);
@@ -171,37 +173,4 @@ public class Main
 	public static void openURL(String s)
 	{ try { Desktop.getDesktop().browse(new URI(s)); }
 	catch (Exception e) { e.printStackTrace(); } }
-	
-	public static class Config
-	{
-		@Expose public Integer refreshMinutes;
-		@Expose public Integer graphLimit;
-		@Expose public Boolean graphRelative;
-		@Expose public Boolean startMinimized;
-		@Expose public String dataFolderPath;
-		@Expose public Boolean scrollTabs;
-		@Expose public Boolean closeToTray;
-		@Expose public String colorBackground;
-		@Expose public String colorGrid;
-		@Expose public String colorLines;
-		@Expose public String colorText;
-		
-		public void setDefaults()
-		{
-			if(refreshMinutes == null) refreshMinutes = 30;
-			if(graphLimit == null) graphLimit = -1;
-			if(graphRelative == null) graphRelative = false;
-			if(startMinimized == null) startMinimized = true;
-			if(dataFolderPath == null) dataFolderPath = new File(folder, "data/").getAbsolutePath().replace("\\", "/");
-			if(scrollTabs == null) scrollTabs = true;
-			if(closeToTray == null) closeToTray = true;
-			if(colorBackground == null) colorBackground = "#000000";
-			if(colorGrid == null) colorGrid = "#1E1E1E";
-			if(colorLines == null) colorLines = "#FF9D00";
-			if(colorText == null) colorText = "#FFC900";
-		}
-		
-		public void save()
-		{ Utils.toJsonFile(configFile, Config.this); }
-	}
 }

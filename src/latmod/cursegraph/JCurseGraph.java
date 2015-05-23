@@ -2,17 +2,17 @@ package latmod.cursegraph;
 
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.List;
 
-import javax.swing.*;
+import javax.swing.JPanel;
 
-public class JCurseGraph extends JLabel implements MouseMotionListener, MouseListener
+public class JCurseGraph extends JPanel implements MouseMotionListener, MouseListener
 {
 	private static final long serialVersionUID = 1L;
-	private static final int fontSize = 12;
+	private static final int fontSize = 16;
 	public static Color colorBackground, colorGrid, colorLines, colorText;
+	public static boolean mouse = true;
 	
 	private static class GraphPoint
 	{
@@ -43,77 +43,68 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 		}
 	}
 	
-	public final JPanel parent;
 	public final Curse.Project project;
 	
-	private int lastWidth = -1;
-	private int lastHeight = -1;
-	private int mouseX, mouseY;
+	private static int mouseX, mouseY;
 	
-	public JCurseGraph(JPanel jp, Curse.Project p)
+	public JCurseGraph(Curse.Project p)
 	{
-		super(getIcon(p, 700, 500));
-		parent = jp;
+		super(false);
 		project = p;
 		addMouseListener(this);
 		addMouseMotionListener(this);
+		setBackground(Colors.background);
 	}
 	
-	private static Icon getIcon(Curse.Project p, int w, int h)
+	public static void drawString(String s, int x, int y, Graphics g)
 	{
-		Colors.update();
-		
-		BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
-		int pixels[] = new int[w * h];
-		
-		for(int i = 0; i < pixels.length; i++)
-		{
-			int x = i % w;
-			int y = i / w;
-			
-			pixels[i] = Colors.background.getRGB();
-			
-			if((y % 24 == 0) || (x % 24 == 0)) pixels[i] = Colors.grid.getRGB();
-		}
-		
-		img.setRGB(0, 0, w, h, pixels, 0, w);
-		
-		return new ImageIcon(img);
+		FontMetrics fm = g.getFontMetrics();
+		int y1 = fm.getAscent() + y - fm.getDescent();// + fontSize / 2;
+		g.drawString(s, x, y1);
 	}
-
-	public void paint(Graphics g)
+	
+	public void paint(Graphics g0)
 	{
-		int parentW = parent.getWidth();
-		int parentH = parent.getHeight() - 8;
+		super.paint(g0);
 		
-		if(lastWidth != parentW || lastHeight != parentH)
-		{
-			setIcon(getIcon(project, parentW, parentH));
-			lastWidth = parentW;
-			lastHeight = parentH;
-		}
+		if(!(g0 instanceof Graphics2D)) return;
+		Graphics2D g = (Graphics2D)g0;
 		
 		int w = getWidth();
 		int h = getHeight();
 		
-		super.paint(g);
+		if(w < 0 || h < 0) return;
 		
-		Graphics2D g2d = (Graphics2D) g;
-		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+		g.setBackground(Colors.background);
+		g.clearRect(0, 0, w, h);
 		
-		List<Graph.TimedDown> values = Graph.getDownloads(project.projectID);
+		Colors.update();
+		
+		g.setColor(Colors.grid);
+		
+		for(int i = 0; i <= w; i += 24)
+			g.drawLine(i, 0, i, h);
+		
+		for(int i = 0; i <= h; i += 24)
+			g.drawLine(0, i, w, i);
+		
+		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+		
+		List<Graph.TimedDown> values0 = Graph.getDownloads(project.projectID);
+		List<Graph.TimedDown> values = new ArrayList<Graph.TimedDown>();
 		//values.add(new Graph.TimedDown(System.currentTimeMillis(), project.getTotalDownloads()));
 		
 		if(Main.config.graphLimit.intValue() > 0)
 		{
-			long l = System.currentTimeMillis() - (Main.config.graphLimit.intValue() * 3600000L);
+			long l = System.currentTimeMillis() - (Main.config.graphLimit.intValue() * 3600 * 1000L);
 			
 			//System.out.println(l);
 			
-			for(int i = 0; i < values.size(); i++)
-			{ if(values.get(i).time < l) values.remove(i); }
+			for(int i = 0; i < values0.size(); i++)
+			{ if(values0.get(i).time >= l) values.add(values0.get(i)); }
 		}
+		else values = values0;
 		
 		ArrayList<GraphPoint> points = new ArrayList<GraphPoint>();
 		
@@ -203,54 +194,40 @@ public class JCurseGraph extends JLabel implements MouseMotionListener, MouseLis
 			else
 				g.drawOval(p.x - 1, p.y - 1, 2, 2);
 			
-			if(pointOver == -1 && p.time > 0L && Utils.distSq(mouseX, mouseY, p.x, p.y) <= (6 * 6))
-			{
+			if(mouse && pointOver == -1 && p.time > 0L && Utils.distSq(mouseX, mouseY, p.x, p.y) <= (6 * 6))
 				pointOver = i;
-				g.setColor(Colors.text);
-				
-				if(i > 0 && isRelative)
-					g.drawString(Graph.getTimeString(p.time) + " :: " + p.downs + " :: +" + (p.downs - pp.downs), 4, 16);
-				else
-					g.drawString(Graph.getTimeString(p.time) + " :: " + p.downs, 4, 16);
-				g.setColor(Colors.lines);
-				
-				if(!isRelative)
-					g.drawOval(p.x - 1, p.y - 1, 2, 2);
-				g.drawOval(p.x - 2, p.y - 2, 4, 4);
-			}
 		}
 		
 		g.setColor(Colors.text);
 		
-		if(pointOver == -1)
 		{
 			drawString("" + maxDown, 4, 4, g);
 			drawString("" + ((maxDown + minDown) / 2), 4, h / 2 - fontSize / 2, g);
 			drawString("" + minDown, 4, h - fontSize, g);
-			
-			if(!isRelative)
-			{
-				String ns = points.size() + " Nodes";
-				drawString(ns, w - (g.getFontMetrics().stringWidth(ns) + 3), h - fontSize, g);
-			}
-		}
-		else
-		{
-			if(!isRelative)
-			{
-				String ns = "Node #" + (pointOver + 1);
-				drawString(ns, w - (g.getFontMetrics().stringWidth(ns) + 3), h - fontSize, g);
-			}
 		}
 		
-		repaint();
-	}
-	
-	public void drawString(String s, int x, int y, Graphics g)
-	{
-		FontMetrics fm = g.getFontMetrics();
-		int y1 = fm.getAscent() + y - fm.getDescent();// + fontSize / 2;
-		g.drawString(s, x, y1);
+		if(!isRelative)
+		{
+			String ns = (pointOver != -1) ? ("Node #" + (pointOver + 1)) : (points.size() + " Nodes");
+			drawString(ns, w - (g.getFontMetrics().stringWidth(ns) + 3), h - fontSize, g);
+		}
+		
+		if(mouse && pointOver != -1)
+		{
+			GraphPoint p = points.get(pointOver);
+			GraphPoint pp = (pointOver > 0) ? points.get(pointOver - 1) : null;
+			
+			if(!isRelative)
+				g.drawOval(p.x - 1, p.y - 1, 2, 2);
+			g.drawOval(p.x - 2, p.y - 2, 4, 4);
+			
+			String s = Graph.getTimeString(p.time) + " :: " + p.downs + ((pp != null && isRelative) ? (" :: +" + (p.downs - pp.downs)) : "");
+			
+			g.setColor(Colors.grid);
+			g.fillRect(mouseX + 6, mouseY, g.getFontMetrics().stringWidth(s) + 12, fontSize);
+			g.setColor(Colors.text);
+			g.drawString(s, mouseX + 12, mouseY + 12);
+		}
 	}
 	
 	public void mouseDragged(MouseEvent e) { }

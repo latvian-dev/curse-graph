@@ -40,46 +40,35 @@ public class Graph
 	public static class Checker implements Runnable
 	{
 		public Thread thread = null;
-		private boolean first = true;
 		
 		public void start()
 		{
-			if(thread != null) stop();
-			
 			if(thread == null)
 			{
 				thread = new Thread(this);
 				thread.setDaemon(true);
-				thread.start();
 			}
-		}
-		
-		@SuppressWarnings("deprecation")
-		public void stop()
-		{
-			if(thread != null) try
-			{
-				thread.stop();
- 				thread = null;
-			}
-			catch(Exception e) {}
 		}
 		
 		public void run()
 		{
 			try
 			{
+				boolean first = true;
+				long lastMS = 0L;
+				
 				while(true)
 				{
-					if(!first) Main.refresh();
-					else first = false;
+					long ms = System.currentTimeMillis();
 					
+					if(first) { first = false; lastMS = ms; }
+					else Main.refresh();
+					
+					long reqMS = Main.config.refreshMinutes.intValue() * 60L * 1000L;
+					
+					while(ms - lastMS < reqMS);
+					lastMS = ms;
 					logData();
-					
-					if(Main.config.refreshMinutes <= 0)
-					{ Main.config.refreshMinutes = 15; Main.config.save(); }
-					
-					Thread.sleep(Main.config.refreshMinutes * 60000L);
 				}
 			}
 			catch(Exception e)
@@ -124,9 +113,7 @@ public class Graph
 					{
 						long t = Long.parseLong(s2[0]);
 						int d = Integer.parseInt(s2[1]);
-						
-						Graph.TimedDown td = new Graph.TimedDown(t, d);
-						data.downloads.add(td);
+						data.downloads.add(new Graph.TimedDown(t, d));
 					}
 				}
 				

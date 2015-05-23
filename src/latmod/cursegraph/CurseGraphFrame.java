@@ -20,6 +20,7 @@ public class CurseGraphFrame extends JFrame
 		add(pane);
 		this.setSize(700, 500);
 		pane.setSize(700, 500);
+		setMinimumSize(new Dimension(400, 300));
 		setResizable(true);
 		refresh();
 		pack();
@@ -37,6 +38,10 @@ public class CurseGraphFrame extends JFrame
 	
 	public void refresh()
 	{
+		int tabs = Main.config.displayTabs.intValue();
+		boolean displayIcons = (tabs == 0 || tabs == 1);
+		boolean displayTitles = (tabs == 0 || tabs == 2);
+		
 		pane.removeAll();
 		pane.setTabLayoutPolicy(Main.config.scrollTabs.booleanValue() ? JTabbedPane.SCROLL_TAB_LAYOUT : JTabbedPane.WRAP_TAB_LAYOUT);
 		
@@ -107,7 +112,7 @@ public class CurseGraphFrame extends JFrame
 			final int times[] = { -1, 1, 24, 24 * 7, 24 * 30 };
 			final String types[] = { "None", "Hour", "Day", "Week", "Month" };
 			
-			String bname = "Custom";
+			String bname = "Custom ( " + Main.config.graphLimit + "h )";
 			if(Main.config.graphLimit.intValue() == -1) bname = "None";
 			else for(int i = 0; i < times.length; i++)
 			{ if(times[i] == Main.config.graphLimit.intValue()) bname = types[i]; }
@@ -119,7 +124,7 @@ public class CurseGraphFrame extends JFrame
 				{
 					try
 					{
-						String type0 = (String)JOptionPane.showInputDialog(null, "Select graph type:", "Graph type", JOptionPane.PLAIN_MESSAGE, null, types, types[0]);
+						String type0 = (String)JOptionPane.showInputDialog(null, "Select graph limit:", "Graph limit", JOptionPane.PLAIN_MESSAGE, null, types, types[0]);
 						if(type0 == null || type0.isEmpty()) return;
 						
 						for(int i = 0; i < types.length; i++)
@@ -163,7 +168,23 @@ public class CurseGraphFrame extends JFrame
 			{
 				public void actionPerformed(ActionEvent e)
 				{
-					Main.config.scrollTabs = !Main.config.scrollTabs.booleanValue();
+					Main.config.scrollTabs = !scrollTabs;
+					Main.config.save();
+					refresh();
+				}
+			});
+			
+			settingsPanel.add(b);
+		}
+		
+		{
+			final int displayTabs = Main.config.displayTabs.intValue();
+			final JButton b = new JButton("Display Tabs: " + ((displayTabs == 0) ? "Icons & Titles" : (displayTabs == 1 ? "Icons" : "Titles")));
+			b.addActionListener(new ActionListener()
+			{
+				public void actionPerformed(ActionEvent e)
+				{
+					Main.config.displayTabs = (displayTabs + 1) % 3;
 					Main.config.save();
 					refresh();
 				}
@@ -186,8 +207,6 @@ public class CurseGraphFrame extends JFrame
 							int i = Integer.parseInt(input);
 							Main.config.refreshMinutes = Math.max(1, i);
 							Main.config.save();
-							
-							Graph.checker.start();
 						}
 						catch(Exception ex)
 						{ Main.error("Invalid number!", false); }
@@ -262,86 +281,6 @@ public class CurseGraphFrame extends JFrame
 			settingsPanel.add(b);
 		}
 		
-		/*
-		{
-			PopupMenu m1 = new PopupMenu("Clear older than...");
-			
-			{
-				MenuItem m2 = new MenuItem("Month");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{ Graph.clearData(getH(24 * 30)); }
-				});
-				
-				m1.add(m2);
-			}
-			
-			{
-				MenuItem m2 = new MenuItem("Week");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{ Graph.clearData(getH(24 * 7)); }
-				});
-				
-				m1.add(m2);
-			}
-			
-			{
-				MenuItem m2 = new MenuItem("Day");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{ Graph.clearData(getH(24)); }
-				});
-				
-				m1.add(m2);
-			}
-			
-			{
-				MenuItem m2 = new MenuItem("Hour");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{ Graph.clearData(getH(1)); }
-				});
-				
-				m1.add(m2);
-			}
-			
-			{
-				MenuItem m2 = new MenuItem("X Minues");
-				
-				m2.addActionListener(new ActionListener()
-				{
-					public void actionPerformed(ActionEvent e)
-					{
-						String input = JOptionPane.showInputDialog("X Minutes:", "10");
-						if(input != null && !input.isEmpty())
-						{
-							try
-							{
-								int i = Integer.parseInt(input);
-								i = Math.max(1, i);
-								Graph.clearData(i * 60000L);
-							}
-							catch(Exception ex)
-							{ error("Invalid number!", false); }
-						}
-					}
-				});
-				
-				m1.add(m2);
-			}
-			
-			menu.add(m1);
-		}
-		*/
 		{
 			JButton b = new JButton("Exit");
 			b.addActionListener(new ActionListener()
@@ -353,15 +292,13 @@ public class CurseGraphFrame extends JFrame
 			settingsPanel.add(b);
 		}
 		
-		pane.addTab("Settings", null, settingsPanel, null);
+		pane.addTab(displayTitles ? "Settings" : "", displayIcons ? Main.iconSettings : null, settingsPanel, null);
 		
 		Curse.Project[] projectsList = Projects.list.toArray(new Curse.Project[0]);
 		Arrays.sort(projectsList);
 		
 		for(final Curse.Project p : projectsList)
 		{
-			final JPanel panel = new JPanel(false);
-			
 			JPopupMenu menu = new JPopupMenu();
 			
 			{
@@ -481,10 +418,13 @@ public class CurseGraphFrame extends JFrame
 				menu.add(remove);
 			}
 			
+			JCurseGraph panel = new JCurseGraph(p);
+			panel.setSize(700, 500);
 			panel.setComponentPopupMenu(menu);
-			
-			panel.add(new JCurseGraph(panel, p));
-			pane.addTab(p.title, null, panel, null);
+			ImageIcon icon = null;
+			if(displayIcons && p.image != null)
+				icon = new ImageIcon(p.image.getScaledInstance(32, 32, Image.SCALE_SMOOTH));
+			pane.addTab(displayTitles ? p.title : "", icon, panel, p.title);
 			componentsAdded.add(p.title);
 		}
 		
@@ -493,13 +433,13 @@ public class CurseGraphFrame extends JFrame
 		for(int i = 0; i < componentsAdded.size(); i++)
 		{
 			final JMenuItem item = new JMenuItem(componentsAdded.get(i));
+			if(displayIcons) item.setIcon(pane.getIconAt(i));
+			
 			final int index = i;
 			item.addActionListener(new ActionListener()
 			{
 				public void actionPerformed(ActionEvent e)
-				{
-					pane.setSelectedIndex(index);
-				}
+				{ pane.setSelectedIndex(index); }
 			});
 			
 			menuAll.add(item);

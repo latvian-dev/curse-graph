@@ -1,5 +1,6 @@
 package latmod.cursegraph;
 
+import java.awt.image.BufferedImage;
 import java.util.Map;
 
 import com.google.gson.annotations.Expose;
@@ -54,6 +55,7 @@ public class Curse
 	public static class Project implements Comparable<Project>
 	{
 		public String projectID;
+		public BufferedImage image;
 		
 		@Expose public Integer typeID;
 		@Expose public String title;

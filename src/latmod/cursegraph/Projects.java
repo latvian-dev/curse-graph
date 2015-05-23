@@ -89,6 +89,9 @@ public class Projects
 				m.projectID = id;
 				m.typeID = t.ordinal();
 				
+				if(m.thumbnail != null && !m.thumbnail.isEmpty())
+					m.image = Main.loadImageURL(m.thumbnail);
+				
 				if(list.contains(m))
 				{
 					Main.error("Duplicate ProjectID '" + id + "'!", silent);
