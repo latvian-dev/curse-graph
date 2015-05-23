@@ -115,7 +115,7 @@ public class JCurseGraph extends JPanel implements MouseMotionListener, MouseLis
 		
 		boolean isRelative = Main.config.graphRelative.booleanValue();
 		
-		if(isRelative)
+		if(isRelative) // double angle = (Math.atan2(x - prevX, prevY - y) * 180D / Math.PI);
 		{
 			if(values.size() >= 2)
 			{
@@ -215,18 +215,34 @@ public class JCurseGraph extends JPanel implements MouseMotionListener, MouseLis
 		if(mouse && pointOver != -1)
 		{
 			GraphPoint p = points.get(pointOver);
-			GraphPoint pp = (pointOver > 0) ? points.get(pointOver - 1) : null;
+			
+			int x = mouseX - 10;
+			int y = mouseY + 20;
+			
+			String txt = Graph.getTimeString(p.time) + " :: " + p.downs;
+			
+			if(isRelative && pointOver > 0)
+			{
+				GraphPoint pp = points.get(pointOver - 1);
+				txt += " :: +" + (p.downs - pp.downs);
+			}
+			
+			int ts = g.getFontMetrics().stringWidth(txt);
+			
+			if(x + ts + 18 > w)
+				x = w - ts - 18;
+			
+			if(y + 18 > h)
+				y = h - 18;
 			
 			if(!isRelative)
 				g.drawOval(p.x - 1, p.y - 1, 2, 2);
 			g.drawOval(p.x - 2, p.y - 2, 4, 4);
 			
-			String s = Graph.getTimeString(p.time) + " :: " + p.downs + ((pp != null && isRelative) ? (" :: +" + (p.downs - pp.downs)) : "");
-			
 			g.setColor(Colors.grid);
-			g.fillRect(mouseX + 6, mouseY, g.getFontMetrics().stringWidth(s) + 12, fontSize);
+			g.fillRect(x + 6, y, ts + 12, fontSize);
 			g.setColor(Colors.text);
-			g.drawString(s, mouseX + 12, mouseY + 12);
+			g.drawString(txt, x + 12, y + 12);
 		}
 	}
 	
