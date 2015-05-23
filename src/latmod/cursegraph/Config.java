@@ -2,6 +2,8 @@ package latmod.cursegraph;
 
 import java.io.File;
 
+import latmod.cursegraph.JCurseGraph.Colors;
+
 import com.google.gson.annotations.Expose;
 
 public class Config
@@ -36,6 +38,7 @@ public class Config
 		if(exportGraph == null) exportGraph = new Integer[]{ 800, 600 };
 		if(displayTabs == null) displayTabs = 1;
 		
+		Colors.update();
 		if(refreshMinutes < 1) refreshMinutes = 1;
 		if(exportGraph.length != 2) exportGraph = new Integer[]{ 800, 600 };
 	}

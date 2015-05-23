@@ -208,7 +208,7 @@ public class JCurseGraph extends JPanel implements MouseMotionListener, MouseLis
 		
 		if(!isRelative)
 		{
-			String ns = (pointOver != -1) ? ("Node #" + (pointOver + 1)) : (points.size() + " Nodes");
+			String ns = (pointOver != -1) ? ("Node #" + (pointOver + 1)) : (project.title + ", " + points.size() + " Nodes");
 			drawString(ns, w - (g.getFontMetrics().stringWidth(ns) + 3), h - fontSize, g);
 		}
 		

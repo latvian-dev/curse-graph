@@ -1,7 +1,10 @@
 package latmod.cursegraph;
 
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
+
+import javax.imageio.ImageIO;
 
 public class Graph
 {
@@ -127,6 +130,9 @@ public class Graph
 	
 	public static void saveGraph() throws Exception
 	{
+		int exportW = Main.config.exportGraph[0];
+		int exportH = Main.config.exportGraph[1];
+		
 		for(Curse.Project p : Projects.list)
 		{
 			GraphData data = getData(p.projectID);
@@ -136,8 +142,26 @@ public class Graph
 			{
 				BufferedWriter bw = new BufferedWriter(new FileWriter(Utils.newFile(new File(Main.config.dataFolderPath, p.projectID + ".txt"))));
 				Arrays.sort(downs); for(Graph.TimedDown t : downs) bw.append(t.time + ": " + t.down + "\n"); bw.flush(); bw.close();
+				
+				if(exportW > 0 && exportH > 0)
+				{
+					try
+					{
+						JCurseGraph.mouse = false;
+						JCurseGraph j = new JCurseGraph(p);
+						j.setSize(exportW, exportH);
+						BufferedImage image = new BufferedImage(exportW, exportH, BufferedImage.TYPE_INT_RGB);
+						j.paint(image.getGraphics());
+						ImageIO.write(image, "PNG", Utils.newFile(new File(Main.dataFolder, p.projectID + ".png")));
+					}
+					catch(Exception e)
+					{ e.printStackTrace(); }
+					JCurseGraph.mouse = true;
+				}
 			}
 		}
+		
+		System.gc();
 	}
 	
 	@SuppressWarnings("deprecation")

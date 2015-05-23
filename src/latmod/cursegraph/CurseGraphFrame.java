@@ -20,7 +20,7 @@ public class CurseGraphFrame extends JFrame
 		add(pane);
 		this.setSize(700, 500);
 		pane.setSize(700, 500);
-		setMinimumSize(new Dimension(400, 300));
+		setMinimumSize(new Dimension(500, 400));
 		setResizable(true);
 		refresh();
 		pack();

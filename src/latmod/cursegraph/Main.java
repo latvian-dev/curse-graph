@@ -62,7 +62,7 @@ public class Main
 		imageReady = loadImage("trayIcon.png");
 		imageBusy = loadImage("trayIconBusy.png");
 		imageSettings = loadImage("settings.png");
-		iconSettings = new ImageIcon(imageSettings.getScaledInstance(24, 24, Image.SCALE_SMOOTH));
+		iconSettings = new ImageIcon(imageSettings.getScaledInstance(32, 32, Image.SCALE_SMOOTH));
 		
 		trayIcon = new TrayIcon(imageReady);
 		trayIcon.setImageAutoSize(true);
