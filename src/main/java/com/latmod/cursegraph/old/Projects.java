@@ -1,8 +1,14 @@
-package latmod.cursegraph;
+package com.latmod.cursegraph.old;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Scanner;
 
 public class Projects
 {
@@ -47,10 +53,10 @@ public class Projects
 		list.clear();
 		
 		boolean addedAll = true;
-		
-		File f = new File(Main.dataFolder, "projects.txt");
-		
-		try
+
+        File f = new File(CurseGraph.dataFolder, "projects.txt");
+
+        try
 		{
 			BufferedReader br = new BufferedReader(new FileReader(Utils.newFile(f)));
 			String s = null;
@@ -71,8 +77,11 @@ public class Projects
 			br.close();
 		}
 		catch(Exception e) { }
-		
-		if(!addedAll) Main.error("Some projects failed to load!", false);
+
+        if(!addedAll)
+        {
+            CurseGraph.error("Some projects failed to load!", false);
+        }
 		return hasProjects();
 	}
 	
@@ -88,14 +97,16 @@ public class Projects
 			{
 				m.projectID = id;
 				m.typeID = t.ordinal();
-				
-				if(m.thumbnail != null && !m.thumbnail.isEmpty())
-					m.image = Main.loadImageURL(m.thumbnail);
+
+                if(m.thumbnail != null && !m.thumbnail.isEmpty())
+                {
+                    m.image = CurseGraph.loadImageURL(m.thumbnail);
+                }
 				
 				if(list.contains(m))
 				{
-					Main.error("Duplicate ProjectID '" + id + "'!", silent);
-					return list.get(list.indexOf(m));
+                    CurseGraph.error("Duplicate ProjectID '" + id + "'!", silent);
+                    return list.get(list.indexOf(m));
 				}
 				
 				list.add(m);
@@ -105,17 +116,17 @@ public class Projects
 					save();
 					Graph.logData();
 				}
-				
-				Main.info("Added '" + m.title + "'!", silent);
-				
-				return m;
+
+                CurseGraph.info("Added '" + m.title + "'!", silent);
+
+                return m;
 			}
 		}
 		catch(Exception ex)
 		{ ex.printStackTrace(); }
-		
-		Main.error(t.name + " with ID '" + id + "' failed to load!", silent);
-		return null;
+
+        CurseGraph.error(t.name + " with ID '" + id + "' failed to load!", silent);
+        return null;
 	}
 	
 	public static void save()
@@ -131,8 +142,8 @@ public class Projects
 		
 		try
 		{
-			BufferedWriter bw = new BufferedWriter(new FileWriter(Utils.newFile(new File(Main.dataFolder, "projects.txt"))));
-			for(String s : l) bw.append(s); bw.flush(); bw.close();
+            BufferedWriter bw = new BufferedWriter(new FileWriter(Utils.newFile(new File(CurseGraph.dataFolder, "projects.txt"))));
+            for(String s : l) bw.append(s); bw.flush(); bw.close();
 		}
 		catch(Exception e)
 		{ e.printStackTrace(); }

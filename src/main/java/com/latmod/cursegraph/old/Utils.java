@@ -1,11 +1,16 @@
-package latmod.cursegraph;
+package com.latmod.cursegraph.old;
 
-import java.io.*;
-import java.lang.reflect.Type;
-import java.util.*;
-
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.lang.reflect.Type;
+import java.util.List;
+import java.util.Map;
 
 public class Utils
 {

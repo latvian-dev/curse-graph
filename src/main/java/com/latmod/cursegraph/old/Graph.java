@@ -1,10 +1,16 @@
-package latmod.cursegraph;
-
-import java.awt.image.BufferedImage;
-import java.io.*;
-import java.util.*;
+package com.latmod.cursegraph.old;
 
 import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
 
 public class Graph
 {
@@ -63,13 +69,20 @@ public class Graph
 				while(true)
 				{
 					long ms = System.currentTimeMillis();
-					
-					if(first) { first = false; lastMS = ms; }
-					else Main.refresh();
-					
-					long reqMS = Main.config.refreshMinutes.intValue() * 60L * 1000L;
-					
-					while(ms - lastMS < reqMS);
+
+                    if(first)
+                    {
+                        first = false;
+                        lastMS = ms;
+                    }
+                    else
+                    {
+                        CurseGraph.refresh();
+                    }
+
+                    long reqMS = CurseGraph.config.refreshMinutes.intValue() * 60L * 1000L;
+
+                    while(ms - lastMS < reqMS);
 					lastMS = ms;
 					logData();
 				}
@@ -100,10 +113,10 @@ public class Graph
 		{
 			GraphData data = getData(p.projectID);
 			data.downloads.clear();
-			
-			File f = new File(Main.config.dataFolderPath, p.projectID + ".txt");
-			
-			if(f.exists())
+
+            File f = new File(CurseGraph.config.dataFolderPath, p.projectID + ".txt");
+
+            if(f.exists())
 			{
 				BufferedReader br = new BufferedReader(new FileReader(f));
 				String s = null;
@@ -130,18 +143,18 @@ public class Graph
 	
 	public static void saveGraph() throws Exception
 	{
-		int exportW = Main.config.exportGraph[0];
-		int exportH = Main.config.exportGraph[1];
-		
-		for(Curse.Project p : Projects.list)
+        int exportW = CurseGraph.config.exportGraph[0];
+        int exportH = CurseGraph.config.exportGraph[1];
+
+        for(Curse.Project p : Projects.list)
 		{
 			GraphData data = getData(p.projectID);
 			Graph.TimedDown[] downs = data.downloads.toArray(new Graph.TimedDown[0]);
 			
 			if(downs.length > 0)
 			{
-				BufferedWriter bw = new BufferedWriter(new FileWriter(Utils.newFile(new File(Main.config.dataFolderPath, p.projectID + ".txt"))));
-				Arrays.sort(downs); for(Graph.TimedDown t : downs) bw.append(t.time + ": " + t.down + "\n"); bw.flush(); bw.close();
+                BufferedWriter bw = new BufferedWriter(new FileWriter(Utils.newFile(new File(CurseGraph.config.dataFolderPath, p.projectID + ".txt"))));
+                Arrays.sort(downs); for(Graph.TimedDown t : downs) bw.append(t.time + ": " + t.down + "\n"); bw.flush(); bw.close();
 				
 				if(exportW > 0 && exportH > 0)
 				{
@@ -152,8 +165,8 @@ public class Graph
 						j.setSize(exportW, exportH);
 						BufferedImage image = new BufferedImage(exportW, exportH, BufferedImage.TYPE_INT_RGB);
 						j.paint(image.getGraphics());
-						ImageIO.write(image, "PNG", Utils.newFile(new File(Main.dataFolder, p.projectID + ".png")));
-					}
+                        ImageIO.write(image, "PNG", Utils.newFile(new File(CurseGraph.dataFolder, p.projectID + ".png")));
+                    }
 					catch(Exception e)
 					{ e.printStackTrace(); }
 					JCurseGraph.mouse = true;

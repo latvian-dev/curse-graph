@@ -1,11 +1,12 @@
-package latmod.cursegraph;
+package com.latmod.cursegraph.old;
 
+import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
-import java.util.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
+import java.util.ArrayList;
 import java.util.List;
-
-import javax.swing.JPanel;
 
 public class JCurseGraph extends JPanel implements MouseMotionListener, MouseListener
 {
@@ -33,11 +34,11 @@ public class JCurseGraph extends JPanel implements MouseMotionListener, MouseLis
 		{
 			try
 			{
-				background = new Color(Integer.decode(Main.config.colorBackground));
-				grid = new Color(Integer.decode(Main.config.colorGrid));
-				lines = new Color(Integer.decode(Main.config.colorText));
-				text = new Color(Integer.decode(Main.config.colorText));
-			}
+                background = new Color(Integer.decode(CurseGraph.config.colorBackground));
+                grid = new Color(Integer.decode(CurseGraph.config.colorGrid));
+                lines = new Color(Integer.decode(CurseGraph.config.colorText));
+                text = new Color(Integer.decode(CurseGraph.config.colorText));
+            }
 			catch(Exception e)
 			{ e.printStackTrace(); }
 		}
@@ -94,12 +95,12 @@ public class JCurseGraph extends JPanel implements MouseMotionListener, MouseLis
 		List<Graph.TimedDown> values0 = Graph.getDownloads(project.projectID);
 		List<Graph.TimedDown> values = new ArrayList<Graph.TimedDown>();
 		//values.add(new Graph.TimedDown(System.currentTimeMillis(), project.getTotalDownloads()));
-		
-		if(Main.config.graphLimit.intValue() > 0)
-		{
-			long l = System.currentTimeMillis() - (Main.config.graphLimit.intValue() * 3600 * 1000L);
-			
-			//System.out.println(l);
+
+        if(CurseGraph.config.graphLimit.intValue() > 0)
+        {
+            long l = System.currentTimeMillis() - (CurseGraph.config.graphLimit.intValue() * 3600 * 1000L);
+
+            //System.out.println(l);
 			
 			for(int i = 0; i < values0.size(); i++)
 			{ if(values0.get(i).time >= l) values.add(values0.get(i)); }
@@ -112,10 +113,10 @@ public class JCurseGraph extends JPanel implements MouseMotionListener, MouseLis
 		long maxTime = -1;
 		int minDown = -1;
 		int maxDown = -1;
-		
-		boolean isRelative = Main.config.graphRelative.booleanValue();
-		
-		if(isRelative) // double angle = (Math.atan2(x - prevX, prevY - y) * 180D / Math.PI);
+
+        boolean isRelative = CurseGraph.config.graphRelative.booleanValue();
+
+        if(isRelative) // double angle = (Math.atan2(x - prevX, prevY - y) * 180D / Math.PI);
 		{
 			if(values.size() >= 2)
 			{

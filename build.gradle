@@ -1,0 +1,50 @@
+plugins {
+    id 'java'
+    id 'maven'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '1.2.3'
+}
+
+archivesBaseName = "CurseGraph"
+group 'com.latmod.cursegraph'
+version '2.0.0'
+mainClassName = "com.latmod.cursegraph.CurseGraph"
+
+sourceCompatibility = targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'com.google.code.gson:gson:2.7'
+    compile 'net.sf.trove4j:trove4j:3.0.3'
+    compile 'org.jsoup:jsoup:1.10.1'
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'app.json'
+        expand 'version': project.version
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'app.json'
+    }
+}
+
+shadowJar {
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+    classifier = ''
+}
+
+build.dependsOn(shadowJar)
+
+jar {
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+}

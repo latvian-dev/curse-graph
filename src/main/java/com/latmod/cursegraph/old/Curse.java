@@ -1,14 +1,14 @@
-package latmod.cursegraph;
+package com.latmod.cursegraph.old;
+
+import com.google.gson.annotations.Expose;
 
 import java.awt.image.BufferedImage;
 import java.util.Map;
 
-import com.google.gson.annotations.Expose;
-
 public class Curse
 {
-	public static enum Type
-	{
+    public enum Type
+    {
 		MOD("mc-mods", "Mod", 'M'),
 		TEX_PACK("texture-packs", "Texture Pack", 'T'),
 		WORLD("worlds", "World", 'W'),
@@ -74,11 +74,10 @@ public class Curse
 			if(title == null) return false;
 			if(url == null) return false;
 			if(download == null) return false;
-			if(versions == null) return false;
-			return true;
-		}
-		
-		private int totalDownloads = -1;
+            return versions != null;
+        }
+
+        private int totalDownloads = -1;
 		
 		public String toString()
 		{ return projectID; }
