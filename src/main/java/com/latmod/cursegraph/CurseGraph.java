@@ -1,76 +1,225 @@
 package com.latmod.cursegraph;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Element;
+import com.google.gson.JsonObject;
+import com.latmod.cursegraph.cmd.Commands;
+import com.latmod.cursegraph.settings.Settings;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Created by LatvianModder on 16.11.2016.
  */
-public class CurseGraph
+public enum CurseGraph implements Runnable
 {
-    private static File folder;
+    INSTANCE;
+    private static final Map<String, String> MAIN_ARGS = new HashMap<>();
+    private static final StringBuilder LOG_BUILDER = new StringBuilder();
+    private static final List<String> LOG = new ArrayList<>();
+
+    public static final String FOLDER = "folder";
+    public static final String CONFIG_FILE = "config-file";
+    public static final String PROJECTS_FILE = "projects-file";
+    public static final String CURSE_POINTS_FILE = "curse-points-file";
+
+    private String version = "0.0.0";
+    private File folder;
+    private boolean running = true;
+    public long time;
+    private BufferedReader console;
+
+    private Thread consoleThread = new Thread("ConsoleIn")
+    {
+        public void run()
+        {
+            Commands.init();
+            console = new BufferedReader(new InputStreamReader(System.in));
+
+            while(running)
+            {
+                try
+                {
+                    String line = console.readLine().trim();
+
+                    if(!line.isEmpty())
+                    {
+                        String s = Commands.runCommand(line);
+
+                        if(!s.isEmpty())
+                        {
+                            err(s);
+                        }
+                    }
+                }
+                catch(Exception ex)
+                {
+                    ex.printStackTrace();
+                }
+            }
+        }
+    };
 
     public static void main(String[] args) throws Exception
     {
-        MainArgs.init(args);
-        String folderPath = MainArgs.getArg(MainArgs.FOLDER);
-        folder = new File(folderPath.isEmpty() ? "cursegraph" : folderPath);
+        Iterator<String> argsItr = Arrays.asList(args).iterator();
 
-        String localCursePointsFile = MainArgs.getArg(MainArgs.CURSE_POINTS_FILE);
-
-        if(!localCursePointsFile.isEmpty())
+        while(argsItr.hasNext())
         {
-            Map<String, Project> projects = new HashMap<>();
-            double totalPoints = 0D;
+            String key = argsItr.next();
 
-            System.out.println("Loading transaction data from local file...");
-            for(Element e : Jsoup.parse(new File(localCursePointsFile), "UTF-8").select(".transactions"))
+            if(key.startsWith("--"))
             {
-                long time = Long.parseLong(e.select("abbr").get(0).attributes().get("data-epoch"));
-
-                for(Element e1 : e.select("li"))
-                {
-                    Element e2 = e1.getElementsByTag("a").get(0);
-                    String id = e2.html();
-                    Project p = projects.get(id);
-
-                    if(p == null)
-                    {
-                        p = new Project(id, e2.attributes().get("href"));
-                        projects.put(id, p);
-                    }
-
-                    double points = Double.parseDouble(e1.getElementsByTag("b").get(0).html());
-                    p.addPoints(new Points(time, points));
-                    totalPoints += points;
-                }
+                MAIN_ARGS.put(key.substring(2), argsItr.next());
             }
-
-            List<Project> list = new ArrayList<>(projects.values());
-            Collections.sort(list, Project.SORT_BY_POINTS);
-
-            for(Project p : list)
+            else
             {
-                System.out.println(p.getName() + ": $ " + Utils.round(p.getTotalPoints() * 0.05D) + " [" + Utils.round(p.getTotalPoints()) + " points] :: " + p.getUrl());
+                MAIN_ARGS.put(key.startsWith("-") ? key.substring(1) : key, "true");
             }
-
-            System.out.println("Total: $ " + Utils.round(totalPoints * 0.05D));
         }
+
+        new Thread(CurseGraph.INSTANCE, "CurseGraph").start();
+    }
+
+    private static void log0(Object info, String post)
+    {
+        LOG_BUILDER.append('[');
+        Calendar c = Calendar.getInstance();
+        int n = c.get(Calendar.HOUR_OF_DAY);
+        if(n < 10)
+        {
+            LOG_BUILDER.append(0);
+        }
+        LOG_BUILDER.append(n);
+        LOG_BUILDER.append(':');
+        n = c.get(Calendar.MINUTE);
+        if(n < 10)
+        {
+            LOG_BUILDER.append(0);
+        }
+        LOG_BUILDER.append(n);
+        LOG_BUILDER.append(':');
+        n = c.get(Calendar.SECOND);
+        if(n < 10)
+        {
+            LOG_BUILDER.append(0);
+        }
+        LOG_BUILDER.append(n);
+        LOG_BUILDER.append(post);
+        LOG_BUILDER.append(info);
+        System.out.println(LOG_BUILDER);
+
+        if(Settings.LOGGING_ENABLED.getBool())
+        {
+            LOG.add(LOG_BUILDER.toString());
+        }
+
+        LOG_BUILDER.setLength(0);
+    }
+
+    public static void log(Object info)
+    {
+        log0(info, "][LOG]: ");
+    }
+
+    public static void err(Object info)
+    {
+        log0(info, "][ERR]: ");
+    }
+
+    public static String getArg(String key)
+    {
+        String v = MAIN_ARGS.get(key);
+        return v == null ? "" : v;
+    }
+
+    public static boolean hasArg(String key)
+    {
+        return getArg(key).equals("true");
+    }
+
+    public File getFolder()
+    {
+        return folder;
+    }
+
+    @Override
+    public void run()
+    {
+        String folderPath = getArg(FOLDER);
+        folder = new File(folderPath.isEmpty() ? "cursegraph" : folderPath);
 
         Settings.load();
 
-        // start the Thread here //
+        if(Settings.UPDATE_CHECK.getBool())
+        {
+            try
+            {
+                JsonObject o = Utils.fromJsonURL("http://cursegraph.latmod.com/versions").getAsJsonObject();
+                String v = Settings.UPDATE_LATEST.getBool() ? o.get("latest").getAsString() : o.get("recommended").getAsString();
+
+                if(!v.equals(version))
+                {
+                    log("Update available! Current: " + version + (Settings.UPDATE_LATEST.getBool() ? ", Latest: " : ", Recommended: ") + v);
+                }
+            }
+            catch(Exception ex)
+            {
+                err("Failed to check update: " + ex);
+            }
+        }
+
+        try
+        {
+            if(Projects.updateCursePoints())
+            {
+                return;
+            }
+
+            consoleThread.setDaemon(true);
+            consoleThread.start();
+
+            long lastUpdateTime = 0L;
+
+            while(running)
+            {
+                time = System.currentTimeMillis();
+
+                if(lastUpdateTime < time)
+                {
+                    lastUpdateTime = time + (long) (Settings.GENERAL_UPDATE_INTERVAL.getDouble() * 3600000L);
+                    Projects.updateDownloads();
+                }
+            }
+        }
+        catch(Exception ex)
+        {
+            ex.printStackTrace();
+        }
     }
 
-    public static File getFolder()
+    public void stop()
     {
-        return folder;
+        running = true;
+        consoleThread = null;
+
+        try
+        {
+            console.close();
+        }
+        catch(IOException ex)
+        {
+            ex.printStackTrace();
+        }
+
+        console = null;
     }
 }
